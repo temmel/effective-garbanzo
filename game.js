@@ -14,6 +14,7 @@ class Character {
         this.id = id;
         this.hasActedThisTurn = false;
         this.movedThisTurn = false;
+        this.defendedLastTurn = false;
     }
 
     takeDamage(damage, distancePenalty = 1.0, attacker = null) {
@@ -115,6 +116,15 @@ class Character {
 
     defend() {
         this.isDefending = true;
+        this.defendedLastTurn = true;
+    }
+
+    getCurrentMoveRange() {
+        // Units that defended last turn can only move 1 hex
+        if (this.defendedLastTurn) {
+            return 1;
+        }
+        return this.moveRange;
     }
 
     isAlive() {
@@ -133,6 +143,7 @@ class Character {
     resetTurnState() {
         this.hasActedThisTurn = false;
         this.movedThisTurn = false;
+        this.defendedLastTurn = false;
     }
 
     markAsActed() {
@@ -319,12 +330,19 @@ class HexGrid {
         hex.appendChild(hud);
     }
 
-    updateHUD(character) {
+    updateHUD(character, isSelected = false) {
         const hex = this.getHexElement(character.row, character.col);
         if (!hex) return;
 
         const hud = hex.querySelector('.unit-hud');
         if (!hud) return;
+
+        // Toggle selected-hud class
+        if (isSelected) {
+            hud.classList.add('selected-hud');
+        } else {
+            hud.classList.remove('selected-hud');
+        }
 
         const hpPercent = character.getHpPercentage();
         let hpColor = '#48bb78';
@@ -443,6 +461,7 @@ class Game {
 
         this.attackBtn = document.getElementById("attack-btn");
         this.defendBtn = document.getElementById("defend-btn");
+        this.endTurnBtn = document.getElementById("end-turn-btn");
         this.skipMoveBtn = document.getElementById("skip-move-btn");
         this.resetBtn = document.getElementById("reset-btn");
 
@@ -460,6 +479,7 @@ class Game {
     attachEventListeners() {
         this.attackBtn.addEventListener("click", () => this.playerAction("attack"));
         this.defendBtn.addEventListener("click", () => this.playerAction("defend"));
+        this.endTurnBtn.addEventListener("click", () => this.endUnitTurn());
         this.skipMoveBtn.addEventListener("click", () => this.skipMovement());
         this.resetBtn.addEventListener("click", () => this.resetGame());
 
@@ -553,6 +573,12 @@ class Game {
     startMovementPhase() {
         this.currentPhase = "movement";
 
+        // Check if unit defended last turn
+        const baseMoveRange = this.selectedUnit.getCurrentMoveRange();
+        if (this.selectedUnit.defendedLastTurn) {
+            this.addLog(`${this.selectedUnit.name} defended last turn! Movement reduced to 1`, "system");
+        }
+
         // Check if unit is engaged (adjacent to any enemy)
         let closestEnemyDistance = Infinity;
         this.enemyUnits.forEach(enemy => {
@@ -565,9 +591,9 @@ class Game {
         });
 
         const isEngaged = closestEnemyDistance === 1;
-        const effectiveRange = isEngaged ? Math.floor(this.selectedUnit.moveRange * 0.5) : this.selectedUnit.moveRange;
+        const effectiveRange = isEngaged ? Math.floor(baseMoveRange * 0.5) : baseMoveRange;
 
-        if (isEngaged) {
+        if (isEngaged && !this.selectedUnit.defendedLastTurn) {
             this.addLog(`${this.selectedUnit.name} is ENGAGED! Movement reduced to ${effectiveRange}`, "system");
         }
 
@@ -620,7 +646,7 @@ class Game {
 
         if (action === "defend") {
             this.selectedUnit.defend();
-            this.addLog(`${this.selectedUnit.name} braces for attack!`, "player-action");
+            this.addLog(`${this.selectedUnit.name} defends! (Movement reduced to 1 next turn)`, "player-action");
             this.finishUnitTurn();
             return;
         }
@@ -631,6 +657,13 @@ class Game {
         this.hexGrid.highlightTargetableEnemies(this.enemyUnits, this.selectedUnit.row, this.selectedUnit.col);
         this.addLog("Select an enemy to target", "system");
         this.updateUI();
+    }
+
+    endUnitTurn() {
+        if (this.currentPhase !== "combat" || !this.isPlayerTurn || this.gameOver || !this.selectedUnit) return;
+
+        this.addLog(`${this.selectedUnit.name} ends turn`, "player-action");
+        this.finishUnitTurn();
     }
 
     selectTarget(enemy) {
@@ -778,8 +811,11 @@ class Game {
             return;
         }
 
+        // Check if enemy defended last turn
+        const baseMoveRange = enemy.getCurrentMoveRange();
+
         const isEngaged = minDistance === 1;
-        const effectiveRange = isEngaged ? Math.floor(enemy.moveRange * 0.5) : enemy.moveRange;
+        const effectiveRange = isEngaged ? Math.floor(baseMoveRange * 0.5) : baseMoveRange;
 
         // Get blocked positions
         const blockedPositions = [];
@@ -913,12 +949,13 @@ class Game {
         // Update HUDs for all units
         this.playerUnits.forEach(unit => {
             if (unit.isAlive()) {
-                this.hexGrid.updateHUD(unit);
+                const isSelected = unit === this.selectedUnit;
+                this.hexGrid.updateHUD(unit, isSelected);
             }
         });
         this.enemyUnits.forEach(unit => {
             if (unit.isAlive()) {
-                this.hexGrid.updateHUD(unit);
+                this.hexGrid.updateHUD(unit, false);
             }
         });
 
@@ -946,6 +983,7 @@ class Game {
 
         this.attackBtn.style.display = isCombatPhase ? "inline-block" : "none";
         this.defendBtn.style.display = isCombatPhase ? "inline-block" : "none";
+        this.endTurnBtn.style.display = isCombatPhase ? "inline-block" : "none";
         this.skipMoveBtn.style.display = isMovementPhase && this.isPlayerTurn ? "inline-block" : "none";
 
         if ((isCombatPhase || isMovementPhase) && this.isPlayerTurn) {
@@ -970,6 +1008,7 @@ class Game {
     disableButtons() {
         this.attackBtn.disabled = true;
         this.defendBtn.disabled = true;
+        this.endTurnBtn.disabled = true;
         this.skipMoveBtn.disabled = true;
     }
 
@@ -977,6 +1016,7 @@ class Game {
         if (this.currentPhase === "combat") {
             this.attackBtn.disabled = false;
             this.defendBtn.disabled = false;
+            this.endTurnBtn.disabled = false;
         }
         if (this.currentPhase === "movement") {
             this.skipMoveBtn.disabled = false;

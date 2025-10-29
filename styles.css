@@ -31,95 +31,123 @@ h1 {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Stats Panel */
-.stats-panel {
+/* Team Rosters */
+.rosters-panel {
     display: flex;
-    justify-content: space-around;
-    gap: 20px;
+    justify-content: space-between;
+    gap: 15px;
     margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
-.character-info {
+.roster-container {
     background: white;
     border-radius: 12px;
-    padding: 15px 25px;
+    padding: 15px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     flex: 1;
-    min-width: 280px;
-    max-width: 400px;
+    min-width: 300px;
 }
 
-.player-info {
+.player-roster-container {
     border: 3px solid #4299e1;
 }
 
-.enemy-info {
+.enemy-roster-container {
     border: 3px solid #e53e3e;
 }
 
-.character-info h2 {
+.roster-container h2 {
     text-align: center;
     margin-bottom: 12px;
-    font-size: 1.3em;
+    font-size: 1.2em;
     color: #2d3748;
 }
 
-.stat-row {
+.roster {
     display: flex;
-    justify-content: space-between;
-    margin: 8px 0;
-    font-weight: bold;
-    color: #2d3748;
-    font-size: 0.95em;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.health-bar-container {
-    width: 100%;
-    height: 22px;
+/* Unit Cards */
+.unit-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f7fafc;
+    border-radius: 8px;
+    padding: 10px;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.unit-card:hover {
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.unit-card.unit-selected {
+    border-color: #4299e1;
+    background: #ebf8ff;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+}
+
+.unit-card.unit-acted {
+    opacity: 0.6;
+    border-color: #a0aec0;
+}
+
+.unit-card.unit-dead {
+    opacity: 0.3;
     background: #e2e8f0;
-    border-radius: 11px;
-    overflow: hidden;
-    margin: 8px 0;
-    border: 2px solid #cbd5e0;
+    filter: grayscale(1);
+    cursor: not-allowed;
 }
 
-.health-bar {
-    height: 100%;
-    width: 100%;
-    transition: width 0.5s ease, background-color 0.3s ease;
-    border-radius: 9px;
+.unit-sprite {
+    font-size: 2.5em;
+    line-height: 1;
 }
 
-.player-health {
-    background: linear-gradient(90deg, #48bb78, #38a169);
-}
-
-.enemy-health {
-    background: linear-gradient(90deg, #f56565, #e53e3e);
-}
-
-.stat-grid {
+.unit-info {
+    flex: 1;
     display: flex;
-    gap: 15px;
-    margin-top: 10px;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.stat-item {
-    display: flex;
-    gap: 5px;
+.unit-name {
     font-weight: bold;
     color: #2d3748;
     font-size: 0.9em;
 }
 
-.status-effects {
-    margin-top: 8px;
-    min-height: 20px;
-    text-align: center;
-    font-weight: bold;
+.unit-hp-bar-container {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.unit-hp-bar {
+    height: 100%;
+    transition: width 0.5s ease;
+    border-radius: 4px;
+}
+
+.unit-hp-text {
+    font-size: 0.75em;
+    color: #4a5568;
+    font-weight: 600;
+}
+
+.unit-status {
+    font-size: 0.7em;
     color: #805ad5;
-    font-size: 0.85em;
+    font-weight: bold;
 }
 
 /* Battlefield Container */
@@ -206,6 +234,28 @@ h1 {
     }
     50% {
         box-shadow: 0 0 25px rgba(72, 187, 120, 0.8);
+    }
+}
+
+.hexagon.selected-unit {
+    box-shadow: 0 0 25px rgba(66, 153, 225, 1);
+    border: 3px solid #4299e1;
+    transform: scale(1.05);
+}
+
+.hexagon.targetable-enemy {
+    box-shadow: 0 0 20px rgba(237, 137, 54, 0.8);
+    border: 3px solid #ed8936;
+    animation: pulse-target 1s ease-in-out infinite;
+    cursor: crosshair;
+}
+
+@keyframes pulse-target {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(237, 137, 54, 0.6);
+    }
+    50% {
+        box-shadow: 0 0 30px rgba(237, 137, 54, 1);
     }
 }
 
@@ -439,12 +489,12 @@ h1 {
         font-size: 1.6em;
     }
 
-    .stats-panel {
+    .rosters-panel {
         flex-direction: column;
     }
 
-    .character-info {
-        max-width: 100%;
+    .roster-container {
+        min-width: 100%;
     }
 
     .battlefield-container {

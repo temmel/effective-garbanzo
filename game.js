@@ -13,6 +13,7 @@ class Character {
         this.col = 0;
         this.id = id;
         this.hasActedThisTurn = false;
+        this.movedThisTurn = false;
     }
 
     takeDamage(damage, distancePenalty = 1.0) {
@@ -31,13 +32,25 @@ class Character {
     }
 
     attackTarget(target, distance) {
-        const baseDamage = this.attack + Math.floor(Math.random() * 6) - 2;
+        let baseDamage = this.attack + Math.floor(Math.random() * 6) - 2;
+
+        // Stationary combat bonus: +25% if didn't move
+        if (!this.movedThisTurn) {
+            baseDamage = Math.floor(baseDamage * 1.25);
+        }
+
         const penalty = this.getDistancePenalty(distance);
         return target.takeDamage(baseDamage, penalty);
     }
 
     specialAttack(target, distance) {
-        const baseDamage = Math.floor(this.attack * 1.5) + Math.floor(Math.random() * 8) - 2;
+        let baseDamage = Math.floor(this.attack * 1.5) + Math.floor(Math.random() * 8) - 2;
+
+        // Stationary combat bonus: +25% if didn't move
+        if (!this.movedThisTurn) {
+            baseDamage = Math.floor(baseDamage * 1.25);
+        }
+
         const penalty = this.getDistancePenalty(distance);
         return target.takeDamage(baseDamage, penalty);
     }
@@ -71,6 +84,7 @@ class Character {
 
     resetTurnState() {
         this.hasActedThisTurn = false;
+        this.movedThisTurn = false;
     }
 
     markAsActed() {
@@ -260,8 +274,8 @@ class Game {
         this.enemyUnits = [];
 
         for (let i = 0; i < 5; i++) {
-            this.playerUnits.push(new Character(`Hero ${i + 1}`, 100, 20, 5, "🧙‍♂️", 4, `player-${i}`));
-            this.enemyUnits.push(new Character(`Dark Knight ${i + 1}`, 100, 18, 4, "🧟", 4, `enemy-${i}`));
+            this.playerUnits.push(new Character(`Hero ${i + 1}`, 100, 35, 5, "🧙‍♂️", 4, `player-${i}`));
+            this.enemyUnits.push(new Character(`Dark Knight ${i + 1}`, 100, 32, 4, "🧟", 4, `enemy-${i}`));
         }
 
         this.isPlayerTurn = true;
@@ -437,6 +451,7 @@ class Game {
         const distance = this.hexGrid.hexDistance(this.selectedUnit.row, this.selectedUnit.col, row, col);
         this.addLog(`${this.selectedUnit.name} moves ${distance} hex${distance > 1 ? 'es' : ''}`, "player-action");
 
+        this.selectedUnit.movedThisTurn = true;
         this.hexGrid.placeCharacter(this.selectedUnit, row, col, true);
         this.hexGrid.markUnitAsSelected(this.selectedUnit);
         this.startCombatPhase();
@@ -498,7 +513,8 @@ class Game {
             case "attack":
                 const damage = this.selectedUnit.attackTarget(this.targetEnemy, distance);
                 const rangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`${this.selectedUnit.name} attacks ${this.targetEnemy.name} for ${damage} damage (${rangeText})!`, "player-action");
+                const stationaryText = !this.selectedUnit.movedThisTurn ? " +STATIONARY BONUS" : "";
+                this.addLog(`${this.selectedUnit.name} attacks ${this.targetEnemy.name} for ${damage} damage (${rangeText})${stationaryText}!`, "player-action");
                 this.hexGrid.animateAttack(
                     this.selectedUnit.row, this.selectedUnit.col,
                     this.targetEnemy.row, this.targetEnemy.col
@@ -516,7 +532,8 @@ class Game {
 
                 const specialDamage = this.selectedUnit.specialAttack(this.targetEnemy, distance);
                 const specialRangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`${this.selectedUnit.name} SPECIAL ATTACK on ${this.targetEnemy.name} for ${specialDamage} damage (${specialRangeText})!`, "player-action");
+                const specialStationaryText = !this.selectedUnit.movedThisTurn ? " +STATIONARY BONUS" : "";
+                this.addLog(`${this.selectedUnit.name} SPECIAL ATTACK on ${this.targetEnemy.name} for ${specialDamage} damage (${specialRangeText})${specialStationaryText}!`, "player-action");
                 this.hexGrid.animateAttack(
                     this.selectedUnit.row, this.selectedUnit.col,
                     this.targetEnemy.row, this.targetEnemy.col
@@ -666,9 +683,11 @@ class Game {
         }
 
         if (bestMove.row !== enemy.row || bestMove.col !== enemy.col) {
+            enemy.movedThisTurn = true;
             this.hexGrid.placeCharacter(enemy, bestMove.row, bestMove.col, false);
             this.addLog(`${enemy.name} repositions`, "enemy-action");
         }
+        // If didn't move, movedThisTurn stays false (from resetTurnState)
 
         setTimeout(callback, 500);
     }
@@ -713,7 +732,8 @@ class Game {
             } else {
                 const damage = enemy.attackTarget(target, targetDistance);
                 const rangeText = targetDistance === 1 ? "full" : "reduced";
-                this.addLog(`${enemy.name} attacks ${target.name} for ${damage} damage (${rangeText})!`, "enemy-action");
+                const stationaryText = !enemy.movedThisTurn ? " +STATIONARY" : "";
+                this.addLog(`${enemy.name} attacks ${target.name} for ${damage} damage (${rangeText})${stationaryText}!`, "enemy-action");
                 this.hexGrid.animateAttack(enemy.row, enemy.col, target.row, target.col);
 
                 // Remove dead players from grid
@@ -762,7 +782,7 @@ class Game {
         this.specialBtn.style.display = isCombatPhase ? "flex" : "none";
         this.skipMoveBtn.style.display = isMovementPhase && this.isPlayerTurn ? "flex" : "none";
 
-        if (isCombatPhase && this.isPlayerTurn) {
+        if ((isCombatPhase || isMovementPhase) && this.isPlayerTurn) {
             this.enableButtons();
         } else {
             this.disableButtons();

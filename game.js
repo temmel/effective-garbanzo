@@ -348,8 +348,8 @@ class Game {
         this.selectedUnit = null;
         this.targetEnemy = null;
 
-        // Create hex grid (9 rows x 20 columns)
-        this.hexGrid = new HexGrid(9, 20);
+        // Create hex grid (9 rows x 15 columns)
+        this.hexGrid = new HexGrid(9, 15);
 
         // Position units on the grid
         this.positionStartingUnits();
@@ -370,13 +370,13 @@ class Game {
             { row: 7, col: 1 }
         ];
 
-        // Position enemy units on right side (column 18)
+        // Position enemy units on right side (column 13)
         const enemyPositions = [
-            { row: 1, col: 18 },
-            { row: 3, col: 18 },
-            { row: 4, col: 18 },
-            { row: 5, col: 18 },
-            { row: 7, col: 18 }
+            { row: 1, col: 13 },
+            { row: 3, col: 13 },
+            { row: 4, col: 13 },
+            { row: 5, col: 13 },
+            { row: 7, col: 13 }
         ];
 
         this.playerUnits.forEach((unit, index) => {

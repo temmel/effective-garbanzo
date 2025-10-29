@@ -1,17 +1,20 @@
 # Hex Battle Arena - Turn-Based Combat Game
 
-A browser-based turn-based combat game featuring a hexagonal battlefield where you battle against a Dark Knight!
+A browser-based turn-based 5v5 tactical combat game featuring a hexagonal battlefield where your team of heroes battles against enemy forces!
 
 ## Features
 
+- **5v5 Team Combat** - Command a team of 5 heroes against 5 enemy units
 - **Hexagonal Battlefield** - 9 rows x 20 columns hex grid battleground
+- **HUD Overlays** - Real-time unit stats displayed above each character on the battlefield
 - **Tactical Movement System** - Two-phase turns with movement and combat
 - **Positioned Combat** - Characters occupy specific hexagons on the battlefield
 - **Range-Based Damage** - Distance affects attack effectiveness
 - **Engagement Mechanics** - Adjacent enemies limit movement options
+- **Stationary Bonus** - Units that don't move gain +25% attack damage
 - **Multiple actions**:
   - **Move** - Navigate the battlefield (4 hexes per turn)
-  - **Attack** - Deal damage to the enemy with visual attack animations
+  - **Attack** - Deal damage to enemies with visual attack animations
   - **Defend** - Reduce incoming damage by 50% on the next turn
   - **Special Attack** - Deal 1.5x damage (with 3-turn cooldown)
 - **Animated UI** - Health bars, damage effects, attack lunges, and battle animations

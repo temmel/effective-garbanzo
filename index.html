@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turn-Based Combat Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>⚔️ Turn-Based Combat ⚔️</h1>
+
+        <div class="battle-arena">
+            <!-- Player Character -->
+            <div class="character-card player-card">
+                <h2>🛡️ Hero</h2>
+                <div class="character-sprite player-sprite">🧙‍♂️</div>
+                <div class="stats">
+                    <div class="stat-row">
+                        <span>HP:</span>
+                        <span id="player-hp-text">100/100</span>
+                    </div>
+                    <div class="health-bar-container">
+                        <div class="health-bar player-health" id="player-health-bar"></div>
+                    </div>
+                    <div class="stat-row">
+                        <span>ATK:</span>
+                        <span id="player-atk">20</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>DEF:</span>
+                        <span id="player-def">5</span>
+                    </div>
+                </div>
+                <div class="status-effects" id="player-status"></div>
+            </div>
+
+            <!-- VS Indicator -->
+            <div class="vs-indicator">VS</div>
+
+            <!-- Enemy Character -->
+            <div class="character-card enemy-card">
+                <h2>💀 Dark Knight</h2>
+                <div class="character-sprite enemy-sprite">🧟</div>
+                <div class="stats">
+                    <div class="stat-row">
+                        <span>HP:</span>
+                        <span id="enemy-hp-text">100/100</span>
+                    </div>
+                    <div class="health-bar-container">
+                        <div class="health-bar enemy-health" id="enemy-health-bar"></div>
+                    </div>
+                    <div class="stat-row">
+                        <span>ATK:</span>
+                        <span id="enemy-atk">18</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>DEF:</span>
+                        <span id="enemy-def">4</span>
+                    </div>
+                </div>
+                <div class="status-effects" id="enemy-status"></div>
+            </div>
+        </div>
+
+        <!-- Combat Log -->
+        <div class="combat-log">
+            <h3>Combat Log</h3>
+            <div id="log-messages"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-panel">
+            <h3 id="turn-indicator">Your Turn!</h3>
+            <div class="button-group">
+                <button id="attack-btn" class="action-btn attack-btn">
+                    ⚔️ Attack
+                    <span class="btn-desc">Deal damage</span>
+                </button>
+                <button id="defend-btn" class="action-btn defend-btn">
+                    🛡️ Defend
+                    <span class="btn-desc">Reduce next damage by 50%</span>
+                </button>
+                <button id="special-btn" class="action-btn special-btn">
+                    ✨ Special Attack
+                    <span class="btn-desc">Deal 1.5x damage (3 turn cooldown)</span>
+                </button>
+            </div>
+            <button id="reset-btn" class="reset-btn">🔄 New Game</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,12 +1,15 @@
 // Character Class
 class Character {
-    constructor(name, hp, attack, defense) {
+    constructor(name, hp, attack, defense, sprite) {
         this.name = name;
         this.maxHp = hp;
         this.hp = hp;
         this.attack = attack;
         this.defense = defense;
+        this.sprite = sprite;
         this.isDefending = false;
+        this.row = 0;
+        this.col = 0;
     }
 
     takeDamage(damage) {
@@ -23,7 +26,7 @@ class Character {
     }
 
     attackTarget(target) {
-        const damage = this.attack + Math.floor(Math.random() * 6) - 2; // Random variance
+        const damage = this.attack + Math.floor(Math.random() * 6) - 2;
         return target.takeDamage(damage);
     }
 
@@ -43,22 +46,127 @@ class Character {
     getHpPercentage() {
         return (this.hp / this.maxHp) * 100;
     }
+
+    setPosition(row, col) {
+        this.row = row;
+        this.col = col;
+    }
+}
+
+// Hexagonal Grid Class
+class HexGrid {
+    constructor(rows, cols) {
+        this.rows = rows;
+        this.cols = cols;
+        this.grid = [];
+        this.hexElements = [];
+        this.initializeGrid();
+    }
+
+    initializeGrid() {
+        const gridContainer = document.getElementById('hex-grid');
+        gridContainer.innerHTML = '';
+
+        for (let row = 0; row < this.rows; row++) {
+            const hexRow = document.createElement('div');
+            hexRow.className = 'hex-row';
+
+            // Offset even rows for hexagonal pattern
+            if (row % 2 === 1) {
+                hexRow.classList.add('even');
+            }
+
+            const rowElements = [];
+
+            for (let col = 0; col < this.cols; col++) {
+                const hexagon = document.createElement('div');
+                hexagon.className = 'hexagon';
+                hexagon.dataset.row = row;
+                hexagon.dataset.col = col;
+
+                hexRow.appendChild(hexagon);
+                rowElements.push(hexagon);
+            }
+
+            gridContainer.appendChild(hexRow);
+            this.hexElements.push(rowElements);
+        }
+    }
+
+    getHexElement(row, col) {
+        if (row >= 0 && row < this.rows && col >= 0 && col < this.cols) {
+            return this.hexElements[row][col];
+        }
+        return null;
+    }
+
+    clearHex(row, col) {
+        const hex = this.getHexElement(row, col);
+        if (hex) {
+            hex.classList.remove('player-occupied', 'enemy-occupied');
+            hex.innerHTML = '';
+        }
+    }
+
+    placeCharacter(character, row, col, isPlayer) {
+        this.clearHex(character.row, character.col);
+
+        character.setPosition(row, col);
+        const hex = this.getHexElement(row, col);
+
+        if (hex) {
+            hex.classList.add(isPlayer ? 'player-occupied' : 'enemy-occupied');
+
+            const charSprite = document.createElement('div');
+            charSprite.className = 'hexagon-character';
+            charSprite.textContent = character.sprite;
+            hex.appendChild(charSprite);
+        }
+    }
+
+    flashHex(row, col) {
+        const hex = this.getHexElement(row, col);
+        if (hex) {
+            hex.classList.add('damage-flash');
+            setTimeout(() => hex.classList.remove('damage-flash'), 500);
+        }
+    }
+
+    animateAttack(fromRow, fromCol, toRow, toCol) {
+        const fromHex = this.getHexElement(fromRow, fromCol);
+        if (fromHex) {
+            const character = fromHex.querySelector('.hexagon-character');
+            if (character) {
+                character.classList.add('attack-animation');
+                setTimeout(() => character.classList.remove('attack-animation'), 500);
+            }
+        }
+
+        setTimeout(() => this.flashHex(toRow, toCol), 200);
+    }
 }
 
 // Game State
 class Game {
     constructor() {
-        this.player = new Character("Hero", 100, 20, 5);
-        this.enemy = new Character("Dark Knight", 100, 18, 4);
+        this.player = new Character("Hero", 100, 20, 5, "🧙‍♂️");
+        this.enemy = new Character("Dark Knight", 100, 18, 4, "🧟");
         this.isPlayerTurn = true;
         this.gameOver = false;
         this.specialCooldown = 0;
         this.turnCount = 0;
 
+        // Create hex grid (9 rows x 20 columns)
+        this.hexGrid = new HexGrid(9, 20);
+
+        // Position characters on the grid
+        this.hexGrid.placeCharacter(this.player, 4, 3, true);
+        this.hexGrid.placeCharacter(this.enemy, 4, 16, false);
+
         this.initializeUI();
         this.attachEventListeners();
         this.updateUI();
-        this.addLog("⚔️ Battle begins! Your turn!", "system");
+        this.addLog("⚔️ Battle begins on the hex battlefield! Your turn!", "system");
     }
 
     initializeUI() {
@@ -75,9 +183,6 @@ class Game {
         this.defendBtn = document.getElementById("defend-btn");
         this.specialBtn = document.getElementById("special-btn");
         this.resetBtn = document.getElementById("reset-btn");
-
-        this.playerCard = document.querySelector(".player-card");
-        this.enemyCard = document.querySelector(".enemy-card");
     }
 
     attachEventListeners() {
@@ -96,7 +201,10 @@ class Game {
             case "attack":
                 const damage = this.player.attackTarget(this.enemy);
                 this.addLog(`🗡️ You attack for ${damage} damage!`, "player-action");
-                this.flashDamage(this.enemyCard);
+                this.hexGrid.animateAttack(
+                    this.player.row, this.player.col,
+                    this.enemy.row, this.enemy.col
+                );
                 break;
 
             case "defend":
@@ -108,7 +216,10 @@ class Game {
                 if (this.specialCooldown > 0) return;
                 const specialDamage = this.player.specialAttack(this.enemy);
                 this.addLog(`✨ You unleash a SPECIAL ATTACK for ${specialDamage} damage!`, "player-action");
-                this.flashDamage(this.enemyCard);
+                this.hexGrid.animateAttack(
+                    this.player.row, this.player.col,
+                    this.enemy.row, this.enemy.col
+                );
                 this.specialCooldown = 3;
                 break;
         }
@@ -137,19 +248,14 @@ class Game {
         const random = Math.random();
 
         if (enemyHpPercent < 30 && random < 0.4) {
-            // Low health, more likely to defend
             action = "defend";
         } else if (playerHpPercent < 40 && random < 0.3) {
-            // Player is weak, go for special
             action = "special";
         } else if (random < 0.15) {
-            // Random defend
             action = "defend";
         } else if (random < 0.35) {
-            // Random special
             action = "special";
         } else {
-            // Default to attack
             action = "attack";
         }
 
@@ -157,7 +263,10 @@ class Game {
             case "attack":
                 const damage = this.enemy.attackTarget(this.player);
                 this.addLog(`💀 Enemy attacks for ${damage} damage!`, "enemy-action");
-                this.flashDamage(this.playerCard);
+                this.hexGrid.animateAttack(
+                    this.enemy.row, this.enemy.col,
+                    this.player.row, this.player.col
+                );
                 break;
 
             case "defend":
@@ -168,7 +277,10 @@ class Game {
             case "special":
                 const specialDamage = this.enemy.specialAttack(this.player);
                 this.addLog(`💥 Enemy uses SPECIAL ATTACK for ${specialDamage} damage!`, "enemy-action");
-                this.flashDamage(this.playerCard);
+                this.hexGrid.animateAttack(
+                    this.enemy.row, this.enemy.col,
+                    this.player.row, this.player.col
+                );
                 break;
         }
 
@@ -204,10 +316,16 @@ class Game {
             this.playerHpBar.style.background = "linear-gradient(90deg, #e53e3e, #c53030)";
         } else if (playerPercent < 60) {
             this.playerHpBar.style.background = "linear-gradient(90deg, #ed8936, #dd6b20)";
+        } else {
+            this.playerHpBar.style.background = "linear-gradient(90deg, #48bb78, #38a169)";
         }
 
         if (enemyPercent < 30) {
             this.enemyHpBar.style.background = "linear-gradient(90deg, #742a2a, #63171b)";
+        } else if (enemyPercent < 60) {
+            this.enemyHpBar.style.background = "linear-gradient(90deg, #c53030, #9b2c2c)";
+        } else {
+            this.enemyHpBar.style.background = "linear-gradient(90deg, #f56565, #e53e3e)";
         }
 
         // Update status effects
@@ -229,11 +347,6 @@ class Game {
                 <span class="btn-desc">Deal 1.5x damage (3 turn cooldown)</span>
             `;
         }
-    }
-
-    flashDamage(card) {
-        card.classList.add("damage-flash");
-        setTimeout(() => card.classList.remove("damage-flash"), 500);
     }
 
     addLog(message, type = "") {
@@ -264,26 +377,37 @@ class Game {
         this.gameOver = true;
         this.disableButtons();
 
+        const playerHex = this.hexGrid.getHexElement(this.player.row, this.player.col);
+        const enemyHex = this.hexGrid.getHexElement(this.enemy.row, this.enemy.col);
+
         if (playerWon) {
             this.addLog("🎉 VICTORY! You have defeated the Dark Knight!", "system");
-            this.playerCard.classList.add("victory-animation");
-            this.enemyCard.classList.add("defeat-animation");
+            if (playerHex) {
+                const playerChar = playerHex.querySelector('.hexagon-character');
+                if (playerChar) playerChar.classList.add('victory-animation');
+            }
+            if (enemyHex) {
+                const enemyChar = enemyHex.querySelector('.hexagon-character');
+                if (enemyChar) enemyChar.classList.add('defeat-animation');
+            }
             this.turnIndicator.textContent = "🏆 Victory!";
             this.turnIndicator.style.color = "#38a169";
         } else {
             this.addLog("💀 DEFEAT! You have been defeated...", "system");
-            this.playerCard.classList.add("defeat-animation");
-            this.enemyCard.classList.add("victory-animation");
+            if (playerHex) {
+                const playerChar = playerHex.querySelector('.hexagon-character');
+                if (playerChar) playerChar.classList.add('defeat-animation');
+            }
+            if (enemyHex) {
+                const enemyChar = enemyHex.querySelector('.hexagon-character');
+                if (enemyChar) enemyChar.classList.add('victory-animation');
+            }
             this.turnIndicator.textContent = "☠️ Defeat...";
             this.turnIndicator.style.color = "#e53e3e";
         }
     }
 
     resetGame() {
-        // Clear animations
-        this.playerCard.classList.remove("victory-animation", "defeat-animation");
-        this.enemyCard.classList.remove("victory-animation", "defeat-animation");
-
         // Reset turn indicator style
         this.turnIndicator.style.color = "";
 

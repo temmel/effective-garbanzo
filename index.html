@@ -10,6 +10,55 @@
     <div class="game-container">
         <h1>⚔️ Hex Battle Arena ⚔️</h1>
 
+        <!-- Action Panel with Unit Stats -->
+        <div class="action-panel">
+            <div class="panel-top">
+                <div id="turn-indicator" class="turn-indicator">Your Turn!</div>
+                <button id="reset-btn" class="reset-btn">🔄 New Game</button>
+            </div>
+
+            <div class="panel-main">
+                <!-- Unit Stats (shown when unit selected) -->
+                <div id="unit-stats" class="unit-stats" style="display: none;">
+                    <div class="stat-header">
+                        <span id="stat-sprite" class="stat-sprite">🧙‍♂️</span>
+                        <span id="stat-name" class="stat-name">Hero 1</span>
+                    </div>
+                    <div class="stat-bars">
+                        <div class="stat-item">
+                            <span class="stat-label">HP</span>
+                            <div class="stat-hp-container">
+                                <div id="stat-hp-bar" class="stat-hp-bar"></div>
+                            </div>
+                            <span id="stat-hp-text" class="stat-hp-text">100/100</span>
+                        </div>
+                        <div class="stat-row">
+                            <div class="stat-mini">
+                                <span class="stat-label">ATK</span>
+                                <span id="stat-atk" class="stat-value">35</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-label">DEF</span>
+                                <span id="stat-def" class="stat-value">5</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-label">MOVE</span>
+                                <span id="stat-move" class="stat-value">4</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="button-group">
+                    <button id="attack-btn" class="action-btn attack-btn">⚔️ Attack</button>
+                    <button id="defend-btn" class="action-btn defend-btn">🛡️ Defend</button>
+                    <button id="special-btn" class="action-btn special-btn">✨ Special</button>
+                    <button id="skip-move-btn" class="action-btn skip-move-btn">👣 Skip Move</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Hexagonal Battlefield -->
         <div class="battlefield-container">
             <div id="hex-grid" class="hex-grid"></div>
@@ -19,30 +68,6 @@
         <div class="combat-log">
             <h3>Combat Log</h3>
             <div id="log-messages"></div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="action-panel">
-            <h3 id="turn-indicator">Your Turn!</h3>
-            <div class="button-group">
-                <button id="attack-btn" class="action-btn attack-btn">
-                    ⚔️ Attack
-                    <span class="btn-desc">Deal damage</span>
-                </button>
-                <button id="defend-btn" class="action-btn defend-btn">
-                    🛡️ Defend
-                    <span class="btn-desc">Reduce next damage by 50%</span>
-                </button>
-                <button id="special-btn" class="action-btn special-btn">
-                    ✨ Special Attack
-                    <span class="btn-desc">Deal 1.5x damage (3 turn cooldown)</span>
-                </button>
-                <button id="skip-move-btn" class="action-btn skip-move-btn">
-                    👣 Skip Movement
-                    <span class="btn-desc">Stay in current position</span>
-                </button>
-            </div>
-            <button id="reset-btn" class="reset-btn">🔄 New Game</button>
         </div>
     </div>
 

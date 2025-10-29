@@ -280,44 +280,146 @@ h1 {
 
 /* Action Panel */
 .action-panel {
-    text-align: center;
+    background: white;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 2px solid #e2e8f0;
 }
 
-#turn-indicator {
-    margin-bottom: 15px;
+.panel-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.turn-indicator {
     color: #2d3748;
-    font-size: 1.4em;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+.panel-main {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Unit Stats Display */
+.unit-stats {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    background: #f7fafc;
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 2px solid #4299e1;
+    min-width: 280px;
+}
+
+.stat-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.stat-sprite {
+    font-size: 2.5em;
+    line-height: 1;
+}
+
+.stat-name {
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #2d3748;
+    white-space: nowrap;
+}
+
+.stat-bars {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stat-label {
+    font-size: 0.75em;
+    font-weight: bold;
+    color: #4a5568;
+    min-width: 35px;
+}
+
+.stat-hp-container {
+    flex: 1;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #cbd5e0;
+}
+
+.stat-hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #48bb78, #38a169);
+    transition: width 0.5s ease;
+    border-radius: 4px;
+}
+
+.stat-hp-text {
+    font-size: 0.8em;
+    font-weight: bold;
+    color: #2d3748;
+    min-width: 55px;
+}
+
+.stat-row {
+    display: flex;
+    gap: 12px;
+}
+
+.stat-mini {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.stat-value {
+    font-size: 0.85em;
+    font-weight: bold;
+    color: #2d3748;
+    background: white;
+    padding: 2px 8px;
+    border-radius: 5px;
+    border: 1px solid #e2e8f0;
 }
 
 .button-group {
     display: flex;
-    gap: 12px;
-    justify-content: center;
-    margin-bottom: 15px;
+    gap: 8px;
     flex-wrap: wrap;
 }
 
 .action-btn {
-    flex: 1;
-    min-width: 140px;
-    padding: 18px 15px;
-    font-size: 1em;
+    padding: 10px 16px;
+    font-size: 0.9em;
     font-weight: bold;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     color: white;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.btn-desc {
-    font-size: 0.7em;
-    font-weight: normal;
-    opacity: 0.9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    white-space: nowrap;
 }
 
 .attack-btn {
@@ -326,8 +428,8 @@ h1 {
 
 .attack-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #e53e3e, #c53030);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .defend-btn {
@@ -336,8 +438,8 @@ h1 {
 
 .defend-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #3182ce, #2c5282);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .special-btn {
@@ -346,8 +448,8 @@ h1 {
 
 .special-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #805ad5, #6b46c1);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .skip-move-btn {
@@ -356,8 +458,8 @@ h1 {
 
 .skip-move-btn:hover:not(:disabled) {
     background: linear-gradient(135deg, #dd6b20, #c05621);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn:disabled {
@@ -370,22 +472,22 @@ h1 {
 }
 
 .reset-btn {
-    padding: 12px 25px;
-    font-size: 1em;
+    padding: 8px 16px;
+    font-size: 0.9em;
     font-weight: bold;
     background: linear-gradient(135deg, #48bb78, #38a169);
     color: white;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .reset-btn:hover {
     background: linear-gradient(135deg, #38a169, #2f855a);
     transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Damage Animation */
@@ -441,6 +543,25 @@ h1 {
         font-size: 1.6em;
     }
 
+    .panel-main {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .unit-stats {
+        min-width: auto;
+        width: 100%;
+    }
+
+    .button-group {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .action-btn {
+        width: 100%;
+    }
+
     .battlefield-container {
         padding: 20px 10px;
     }
@@ -469,13 +590,5 @@ h1 {
 
     .hud-hp-text {
         font-size: 0.6em;
-    }
-
-    .button-group {
-        flex-direction: column;
-    }
-
-    .action-btn {
-        min-width: 100%;
     }
 }

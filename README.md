@@ -5,7 +5,7 @@ A browser-based turn-based 5v5 tactical combat game featuring a hexagonal battle
 ## Features
 
 - **5v5 Team Combat** - Command a team of 5 heroes against 5 enemy units
-- **Hexagonal Battlefield** - 9 rows x 20 columns hex grid battleground
+- **Hexagonal Battlefield** - 9 rows x 15 columns hex grid battleground
 - **HUD Overlays** - Real-time unit stats displayed above each character on the battlefield
 - **Tactical Movement System** - Two-phase turns with movement and combat
 - **Positioned Combat** - Characters occupy specific hexagons on the battlefield

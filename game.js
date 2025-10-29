@@ -348,8 +348,8 @@ class Game {
         this.selectedUnit = null;
         this.targetEnemy = null;
 
-        // Create hex grid (9 rows x 20 columns)
-        this.hexGrid = new HexGrid(9, 20);
+        // Create hex grid (9 rows x 15 columns)
+        this.hexGrid = new HexGrid(9, 15);
 
         // Position units on the grid
         this.positionStartingUnits();
@@ -370,13 +370,13 @@ class Game {
             { row: 7, col: 1 }
         ];
 
-        // Position enemy units on right side (column 18)
+        // Position enemy units on right side (column 13)
         const enemyPositions = [
-            { row: 1, col: 18 },
-            { row: 3, col: 18 },
-            { row: 4, col: 18 },
-            { row: 5, col: 18 },
-            { row: 7, col: 18 }
+            { row: 1, col: 13 },
+            { row: 3, col: 13 },
+            { row: 4, col: 13 },
+            { row: 5, col: 13 },
+            { row: 7, col: 13 }
         ];
 
         this.playerUnits.forEach((unit, index) => {
@@ -399,6 +399,16 @@ class Game {
         this.specialBtn = document.getElementById("special-btn");
         this.skipMoveBtn = document.getElementById("skip-move-btn");
         this.resetBtn = document.getElementById("reset-btn");
+
+        // Unit stats elements
+        this.unitStatsPanel = document.getElementById("unit-stats");
+        this.statSprite = document.getElementById("stat-sprite");
+        this.statName = document.getElementById("stat-name");
+        this.statHpBar = document.getElementById("stat-hp-bar");
+        this.statHpText = document.getElementById("stat-hp-text");
+        this.statAtk = document.getElementById("stat-atk");
+        this.statDef = document.getElementById("stat-def");
+        this.statMove = document.getElementById("stat-move");
     }
 
     attachEventListeners() {
@@ -463,7 +473,36 @@ class Game {
 
         this.hexGrid.markUnitAsSelected(unit);
         this.addLog(`Selected ${unit.name}`, "player-action");
+        this.updateUnitStatsDisplay(unit);
         this.startMovementPhase();
+    }
+
+    updateUnitStatsDisplay(unit) {
+        if (!unit) {
+            this.unitStatsPanel.style.display = 'none';
+            return;
+        }
+
+        this.unitStatsPanel.style.display = 'flex';
+        this.statSprite.textContent = unit.sprite;
+        this.statName.textContent = unit.name;
+
+        const hpPercent = unit.getHpPercentage();
+        this.statHpBar.style.width = `${hpPercent}%`;
+
+        // Color code HP bar
+        if (hpPercent < 30) {
+            this.statHpBar.style.background = 'linear-gradient(90deg, #e53e3e, #c53030)';
+        } else if (hpPercent < 60) {
+            this.statHpBar.style.background = 'linear-gradient(90deg, #ed8936, #dd6b20)';
+        } else {
+            this.statHpBar.style.background = 'linear-gradient(90deg, #48bb78, #38a169)';
+        }
+
+        this.statHpText.textContent = `${unit.hp}/${unit.maxHp}`;
+        this.statAtk.textContent = unit.attack;
+        this.statDef.textContent = unit.defense;
+        this.statMove.textContent = unit.moveRange;
     }
 
     startMovementPhase() {
@@ -627,10 +666,12 @@ class Game {
         if (allActed) {
             this.isPlayerTurn = false;
             this.disableButtons();
+            this.unitStatsPanel.style.display = 'none';
             setTimeout(() => this.enemyTeamTurn(), 1500);
         } else {
             this.currentPhase = "unitSelection";
             this.selectedUnit = null;
+            this.unitStatsPanel.style.display = 'none';
             this.addLog("Select next unit to act", "system");
             this.updateUI();
         }
@@ -824,6 +865,11 @@ class Game {
                 this.hexGrid.updateHUD(unit);
             }
         });
+
+        // Update unit stats if a unit is selected
+        if (this.selectedUnit && this.selectedUnit.isAlive()) {
+            this.updateUnitStatsDisplay(this.selectedUnit);
+        }
 
         // Update turn indicator based on phase
         if (!this.isPlayerTurn) {

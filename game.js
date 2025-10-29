@@ -234,7 +234,62 @@ class HexGrid {
             charSprite.dataset.unitId = character.id;
             charSprite.dataset.isPlayer = isPlayer;
             hex.appendChild(charSprite);
+
+            // Add HUD overlay
+            this.createHUD(character, hex, isPlayer);
         }
+    }
+
+    createHUD(character, hex, isPlayer) {
+        const hud = document.createElement('div');
+        hud.className = 'unit-hud';
+        hud.dataset.unitId = character.id;
+
+        const hpPercent = character.getHpPercentage();
+        let hpColor = '#48bb78';
+        if (hpPercent < 30) hpColor = '#e53e3e';
+        else if (hpPercent < 60) hpColor = '#ed8936';
+
+        let statusIcons = '';
+        if (character.hasActedThisTurn && character.isAlive()) statusIcons += '✓ ';
+        if (character.isDefending) statusIcons += '🛡️ ';
+
+        hud.innerHTML = `
+            <div class="hud-name">${character.name}</div>
+            <div class="hud-hp-container">
+                <div class="hud-hp-bar" style="width: ${hpPercent}%; background: ${hpColor};"></div>
+            </div>
+            <div class="hud-hp-text">${character.hp}/${character.maxHp}</div>
+            ${statusIcons ? `<div class="hud-status">${statusIcons}</div>` : ''}
+        `;
+
+        hex.appendChild(hud);
+    }
+
+    updateHUD(character) {
+        const hex = this.getHexElement(character.row, character.col);
+        if (!hex) return;
+
+        const hud = hex.querySelector('.unit-hud');
+        if (!hud) return;
+
+        const hpPercent = character.getHpPercentage();
+        let hpColor = '#48bb78';
+        if (hpPercent < 30) hpColor = '#e53e3e';
+        else if (hpPercent < 60) hpColor = '#ed8936';
+
+        let statusIcons = '';
+        if (character.hasActedThisTurn && character.isAlive()) statusIcons += '✓ ';
+        if (character.isDefending) statusIcons += '🛡️ ';
+
+        hud.innerHTML = `
+            <div class="hud-name">${character.name}</div>
+            <div class="hud-hp-container">
+                <div class="hud-hp-bar" style="width: ${hpPercent}%; background: ${hpColor};"></div>
+            </div>
+            <div class="hud-hp-text">${character.hp}/${character.maxHp}</div>
+            ${statusIcons ? `<div class="hud-status">${statusIcons}</div>` : ''}
+        `;
     }
 
     markUnitAsSelected(character) {
@@ -339,9 +394,6 @@ class Game {
         this.specialBtn = document.getElementById("special-btn");
         this.skipMoveBtn = document.getElementById("skip-move-btn");
         this.resetBtn = document.getElementById("reset-btn");
-
-        this.playerRoster = document.getElementById("player-roster");
-        this.enemyRoster = document.getElementById("enemy-roster");
     }
 
     attachEventListeners() {
@@ -756,9 +808,17 @@ class Game {
     }
 
     updateUI() {
-        // Update rosters
-        this.updateRoster(this.playerRoster, this.playerUnits, true);
-        this.updateRoster(this.enemyRoster, this.enemyUnits, false);
+        // Update HUDs for all units
+        this.playerUnits.forEach(unit => {
+            if (unit.isAlive()) {
+                this.hexGrid.updateHUD(unit);
+            }
+        });
+        this.enemyUnits.forEach(unit => {
+            if (unit.isAlive()) {
+                this.hexGrid.updateHUD(unit);
+            }
+        });
 
         // Update turn indicator based on phase
         if (!this.isPlayerTurn) {
@@ -800,45 +860,6 @@ class Game {
                 <span class="btn-desc">Deal 1.5x damage (3 turn cooldown)</span>
             `;
         }
-    }
-
-    updateRoster(rosterElement, units, isPlayer) {
-        rosterElement.innerHTML = '';
-
-        units.forEach(unit => {
-            const unitCard = document.createElement('div');
-            unitCard.className = 'unit-card';
-
-            if (!unit.isAlive()) {
-                unitCard.classList.add('unit-dead');
-            } else if (unit.hasActedThisTurn) {
-                unitCard.classList.add('unit-acted');
-            }
-
-            if (unit === this.selectedUnit) {
-                unitCard.classList.add('unit-selected');
-            }
-
-            const hpPercent = unit.getHpPercentage();
-            let hpColor = '#48bb78';
-            if (hpPercent < 30) hpColor = '#e53e3e';
-            else if (hpPercent < 60) hpColor = '#ed8936';
-
-            unitCard.innerHTML = `
-                <div class="unit-sprite">${unit.sprite}</div>
-                <div class="unit-info">
-                    <div class="unit-name">${unit.name}</div>
-                    <div class="unit-hp-bar-container">
-                        <div class="unit-hp-bar" style="width: ${hpPercent}%; background: ${hpColor};"></div>
-                    </div>
-                    <div class="unit-hp-text">${unit.hp}/${unit.maxHp}</div>
-                    ${unit.hasActedThisTurn && unit.isAlive() ? '<div class="unit-status">✓ Acted</div>' : ''}
-                    ${unit.isDefending ? '<div class="unit-status">🛡️ Defending</div>' : ''}
-                </div>
-            `;
-
-            rosterElement.appendChild(unitCard);
-        });
     }
 
     addLog(message, type = "") {

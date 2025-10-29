@@ -10,52 +10,18 @@
     <div class="game-container">
         <h1>⚔️ Hex Battle Arena ⚔️</h1>
 
-        <!-- Character Stats Panel -->
-        <div class="stats-panel">
-            <!-- Player Stats -->
-            <div class="character-info player-info">
-                <h2>🛡️ Hero</h2>
-                <div class="stat-row">
-                    <span>HP:</span>
-                    <span id="player-hp-text">100/100</span>
-                </div>
-                <div class="health-bar-container">
-                    <div class="health-bar player-health" id="player-health-bar"></div>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">ATK:</span>
-                        <span id="player-atk">20</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">DEF:</span>
-                        <span id="player-def">5</span>
-                    </div>
-                </div>
-                <div class="status-effects" id="player-status"></div>
+        <!-- Team Rosters -->
+        <div class="rosters-panel">
+            <!-- Player Team Roster -->
+            <div class="roster-container player-roster-container">
+                <h2>🛡️ Your Team</h2>
+                <div id="player-roster" class="roster"></div>
             </div>
 
-            <!-- Enemy Stats -->
-            <div class="character-info enemy-info">
-                <h2>💀 Dark Knight</h2>
-                <div class="stat-row">
-                    <span>HP:</span>
-                    <span id="enemy-hp-text">100/100</span>
-                </div>
-                <div class="health-bar-container">
-                    <div class="health-bar enemy-health" id="enemy-health-bar"></div>
-                </div>
-                <div class="stat-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">ATK:</span>
-                        <span id="enemy-atk">18</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">DEF:</span>
-                        <span id="enemy-def">4</span>
-                    </div>
-                </div>
-                <div class="status-effects" id="enemy-status"></div>
+            <!-- Enemy Team Roster -->
+            <div class="roster-container enemy-roster-container">
+                <h2>💀 Enemy Team</h2>
+                <div id="enemy-roster" class="roster"></div>
             </div>
         </div>
 

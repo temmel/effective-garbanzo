@@ -1,6 +1,6 @@
 // Character Class
 class Character {
-    constructor(name, hp, attack, defense, sprite, moveRange = 4) {
+    constructor(name, hp, attack, defense, sprite, moveRange = 4, id = 0) {
         this.name = name;
         this.maxHp = hp;
         this.hp = hp;
@@ -11,6 +11,8 @@ class Character {
         this.isDefending = false;
         this.row = 0;
         this.col = 0;
+        this.id = id;
+        this.hasActedThisTurn = false;
     }
 
     takeDamage(damage, distancePenalty = 1.0) {
@@ -65,6 +67,14 @@ class Character {
     setPosition(row, col) {
         this.row = row;
         this.col = col;
+    }
+
+    resetTurnState() {
+        this.hasActedThisTurn = false;
+    }
+
+    markAsActed() {
+        this.hasActedThisTurn = true;
     }
 }
 
@@ -156,7 +166,7 @@ class HexGrid {
     clearHex(row, col) {
         const hex = this.getHexElement(row, col);
         if (hex) {
-            hex.classList.remove('player-occupied', 'enemy-occupied');
+            hex.classList.remove('player-occupied', 'enemy-occupied', 'selected-unit');
             hex.innerHTML = '';
         }
     }
@@ -166,7 +176,7 @@ class HexGrid {
             for (let col = 0; col < this.cols; col++) {
                 const hex = this.getHexElement(row, col);
                 if (hex) {
-                    hex.classList.remove('available-move', 'in-range', 'out-of-range');
+                    hex.classList.remove('available-move', 'in-range', 'out-of-range', 'targetable-enemy');
                 }
             }
         }
@@ -182,19 +192,17 @@ class HexGrid {
         });
     }
 
-    highlightAttackRange(fromRow, fromCol, targetRow, targetCol) {
-        const distance = this.hexDistance(fromRow, fromCol, targetRow, targetCol);
-        const hex = this.getHexElement(targetRow, targetCol);
+    highlightTargetableEnemies(enemies, fromRow, fromCol) {
+        enemies.forEach(enemy => {
+            if (!enemy.isAlive()) return;
 
-        if (hex) {
-            if (distance === 1) {
-                hex.classList.add('in-range');
-            } else if (distance === 2) {
-                hex.classList.add('in-range');
-            } else {
-                hex.classList.add('out-of-range');
+            const distance = this.hexDistance(fromRow, fromCol, enemy.row, enemy.col);
+            const hex = this.getHexElement(enemy.row, enemy.col);
+
+            if (hex && distance <= 2) {
+                hex.classList.add('targetable-enemy');
             }
-        }
+        });
     }
 
     placeCharacter(character, row, col, isPlayer) {
@@ -209,7 +217,16 @@ class HexGrid {
             const charSprite = document.createElement('div');
             charSprite.className = 'hexagon-character';
             charSprite.textContent = character.sprite;
+            charSprite.dataset.unitId = character.id;
+            charSprite.dataset.isPlayer = isPlayer;
             hex.appendChild(charSprite);
+        }
+    }
+
+    markUnitAsSelected(character) {
+        const hex = this.getHexElement(character.row, character.col);
+        if (hex) {
+            hex.classList.add('selected-unit');
         }
     }
 
@@ -238,36 +255,68 @@ class HexGrid {
 // Game State
 class Game {
     constructor() {
-        this.player = new Character("Hero", 100, 20, 5, "🧙‍♂️", 4);
-        this.enemy = new Character("Dark Knight", 100, 18, 4, "🧟", 4);
+        // Create 5 player units and 5 enemy units
+        this.playerUnits = [];
+        this.enemyUnits = [];
+
+        for (let i = 0; i < 5; i++) {
+            this.playerUnits.push(new Character(`Hero ${i + 1}`, 100, 20, 5, "🧙‍♂️", 4, `player-${i}`));
+            this.enemyUnits.push(new Character(`Dark Knight ${i + 1}`, 100, 18, 4, "🧟", 4, `enemy-${i}`));
+        }
+
         this.isPlayerTurn = true;
         this.gameOver = false;
         this.specialCooldown = 0;
         this.turnCount = 0;
 
-        // Phase tracking
-        this.currentPhase = "movement"; // "movement" or "combat"
+        // Phase and unit selection tracking
+        this.currentPhase = "unitSelection"; // "unitSelection", "movement", "combat", "targeting"
+        this.selectedUnit = null;
+        this.targetEnemy = null;
 
         // Create hex grid (9 rows x 20 columns)
         this.hexGrid = new HexGrid(9, 20);
 
-        // Position characters on the grid
-        this.hexGrid.placeCharacter(this.player, 4, 3, true);
-        this.hexGrid.placeCharacter(this.enemy, 4, 16, false);
+        // Position units on the grid
+        this.positionStartingUnits();
 
         this.initializeUI();
         this.attachEventListeners();
         this.updateUI();
-        this.startMovementPhase();
+        this.addLog("⚔️ Battle begins! Select a unit to act.", "system");
+    }
+
+    positionStartingUnits() {
+        // Position player units on left side (column 1)
+        const playerPositions = [
+            { row: 1, col: 1 },
+            { row: 3, col: 1 },
+            { row: 4, col: 1 },
+            { row: 5, col: 1 },
+            { row: 7, col: 1 }
+        ];
+
+        // Position enemy units on right side (column 18)
+        const enemyPositions = [
+            { row: 1, col: 18 },
+            { row: 3, col: 18 },
+            { row: 4, col: 18 },
+            { row: 5, col: 18 },
+            { row: 7, col: 18 }
+        ];
+
+        this.playerUnits.forEach((unit, index) => {
+            const pos = playerPositions[index];
+            this.hexGrid.placeCharacter(unit, pos.row, pos.col, true);
+        });
+
+        this.enemyUnits.forEach((unit, index) => {
+            const pos = enemyPositions[index];
+            this.hexGrid.placeCharacter(unit, pos.row, pos.col, false);
+        });
     }
 
     initializeUI() {
-        this.playerHpBar = document.getElementById("player-health-bar");
-        this.enemyHpBar = document.getElementById("enemy-health-bar");
-        this.playerHpText = document.getElementById("player-hp-text");
-        this.enemyHpText = document.getElementById("enemy-hp-text");
-        this.playerStatus = document.getElementById("player-status");
-        this.enemyStatus = document.getElementById("enemy-status");
         this.turnIndicator = document.getElementById("turn-indicator");
         this.logMessages = document.getElementById("log-messages");
 
@@ -276,6 +325,9 @@ class Game {
         this.specialBtn = document.getElementById("special-btn");
         this.skipMoveBtn = document.getElementById("skip-move-btn");
         this.resetBtn = document.getElementById("reset-btn");
+
+        this.playerRoster = document.getElementById("player-roster");
+        this.enemyRoster = document.getElementById("enemy-roster");
     }
 
     attachEventListeners() {
@@ -284,358 +336,421 @@ class Game {
         this.specialBtn.addEventListener("click", () => this.playerAction("special"));
         this.skipMoveBtn.addEventListener("click", () => this.skipMovement());
         this.resetBtn.addEventListener("click", () => this.resetGame());
+
+        // Add click handlers for unit selection on hex grid
+        this.addUnitSelectionHandlers();
     }
 
-    startMovementPhase() {
-        this.currentPhase = "movement";
-
-        // Check if player is engaged (adjacent to enemy)
-        const distance = this.hexGrid.hexDistance(
-            this.player.row, this.player.col,
-            this.enemy.row, this.enemy.col
-        );
-        const isEngaged = distance === 1;
-        const effectiveRange = isEngaged ? Math.floor(this.player.moveRange * 0.5) : this.player.moveRange;
-
-        if (isEngaged) {
-            this.addLog("⚔️ You are ENGAGED! Movement reduced to " + effectiveRange + " hexes", "system");
-        } else {
-            this.addLog("👣 Movement Phase - Click a hex to move or skip", "system");
-        }
-
-        // Show available movement hexes
-        const reachableHexes = this.hexGrid.getReachableHexes(
-            this.player.row,
-            this.player.col,
-            effectiveRange,
-            [{ row: this.enemy.row, col: this.enemy.col }]
-        );
-
-        this.hexGrid.highlightReachableHexes(reachableHexes);
-
-        // Add click handlers to hexes
-        this.addHexClickHandlers(reachableHexes);
-
-        this.updateUI();
-    }
-
-    addHexClickHandlers(reachableHexes) {
-        // Remove old handlers
-        this.removeHexClickHandlers();
-
-        // Add handlers for reachable hexes
-        reachableHexes.forEach(({ row, col }) => {
-            const hex = this.hexGrid.getHexElement(row, col);
-            if (hex) {
-                const handler = () => this.movePlayerTo(row, col);
-                hex.addEventListener('click', handler);
-                hex._clickHandler = handler; // Store reference for cleanup
-            }
-        });
-    }
-
-    removeHexClickHandlers() {
+    addUnitSelectionHandlers() {
         for (let row = 0; row < this.hexGrid.rows; row++) {
             for (let col = 0; col < this.hexGrid.cols; col++) {
                 const hex = this.hexGrid.getHexElement(row, col);
-                if (hex && hex._clickHandler) {
-                    hex.removeEventListener('click', hex._clickHandler);
-                    delete hex._clickHandler;
+                if (hex) {
+                    hex.addEventListener('click', (e) => this.handleHexClick(row, col, e));
                 }
             }
         }
     }
 
-    movePlayerTo(row, col) {
-        const distance = this.hexGrid.hexDistance(this.player.row, this.player.col, row, col);
-        this.addLog(`👣 You move ${distance} hex${distance > 1 ? 'es' : ''}`, "player-action");
+    handleHexClick(row, col, event) {
+        // Check if clicking on a player unit for selection
+        if (this.currentPhase === "unitSelection" && this.isPlayerTurn) {
+            const unit = this.playerUnits.find(u => u.row === row && u.col === col && u.isAlive() && !u.hasActedThisTurn);
+            if (unit) {
+                this.selectUnit(unit);
+                return;
+            }
+        }
 
-        this.hexGrid.placeCharacter(this.player, row, col, true);
-        this.removeHexClickHandlers();
+        // Check if clicking on movement hex
+        if (this.currentPhase === "movement" && event.target.closest('.hexagon').classList.contains('available-move')) {
+            this.movePlayerTo(row, col);
+            return;
+        }
+
+        // Check if clicking on targetable enemy
+        if (this.currentPhase === "targeting") {
+            const enemy = this.enemyUnits.find(u => u.row === row && u.col === col && u.isAlive());
+            if (enemy && event.target.closest('.hexagon').classList.contains('targetable-enemy')) {
+                this.selectTarget(enemy);
+                return;
+            }
+        }
+    }
+
+    selectUnit(unit) {
+        this.selectedUnit = unit;
+        this.hexGrid.clearHighlights();
+
+        // Remove all selected-unit classes
+        for (let row = 0; row < this.hexGrid.rows; row++) {
+            for (let col = 0; col < this.hexGrid.cols; col++) {
+                const hex = this.hexGrid.getHexElement(row, col);
+                if (hex) hex.classList.remove('selected-unit');
+            }
+        }
+
+        this.hexGrid.markUnitAsSelected(unit);
+        this.addLog(`Selected ${unit.name}`, "player-action");
+        this.startMovementPhase();
+    }
+
+    startMovementPhase() {
+        this.currentPhase = "movement";
+
+        // Check if unit is engaged (adjacent to any enemy)
+        let closestEnemyDistance = Infinity;
+        this.enemyUnits.forEach(enemy => {
+            if (!enemy.isAlive()) return;
+            const dist = this.hexGrid.hexDistance(
+                this.selectedUnit.row, this.selectedUnit.col,
+                enemy.row, enemy.col
+            );
+            closestEnemyDistance = Math.min(closestEnemyDistance, dist);
+        });
+
+        const isEngaged = closestEnemyDistance === 1;
+        const effectiveRange = isEngaged ? Math.floor(this.selectedUnit.moveRange * 0.5) : this.selectedUnit.moveRange;
+
+        if (isEngaged) {
+            this.addLog(`${this.selectedUnit.name} is ENGAGED! Movement reduced to ${effectiveRange}`, "system");
+        }
+
+        // Get all occupied positions
+        const blockedPositions = [];
+        this.playerUnits.forEach(u => { if (u.isAlive() && u !== this.selectedUnit) blockedPositions.push({ row: u.row, col: u.col }); });
+        this.enemyUnits.forEach(u => { if (u.isAlive()) blockedPositions.push({ row: u.row, col: u.col }); });
+
+        // Show available movement hexes
+        const reachableHexes = this.hexGrid.getReachableHexes(
+            this.selectedUnit.row,
+            this.selectedUnit.col,
+            effectiveRange,
+            blockedPositions
+        );
+
+        this.hexGrid.highlightReachableHexes(reachableHexes);
+        this.updateUI();
+    }
+
+    movePlayerTo(row, col) {
+        const distance = this.hexGrid.hexDistance(this.selectedUnit.row, this.selectedUnit.col, row, col);
+        this.addLog(`${this.selectedUnit.name} moves ${distance} hex${distance > 1 ? 'es' : ''}`, "player-action");
+
+        this.hexGrid.placeCharacter(this.selectedUnit, row, col, true);
+        this.hexGrid.markUnitAsSelected(this.selectedUnit);
         this.startCombatPhase();
     }
 
     skipMovement() {
         if (this.currentPhase !== "movement") return;
 
-        this.addLog("👣 You stay in position", "player-action");
-        this.removeHexClickHandlers();
+        this.addLog(`${this.selectedUnit.name} stays in position`, "player-action");
         this.startCombatPhase();
     }
 
     startCombatPhase() {
         this.currentPhase = "combat";
         this.hexGrid.clearHighlights();
-
-        // Highlight enemy to show attack range
-        this.hexGrid.highlightAttackRange(
-            this.player.row, this.player.col,
-            this.enemy.row, this.enemy.col
-        );
+        this.hexGrid.markUnitAsSelected(this.selectedUnit);
 
         this.turnCount++;
-        this.addLog("⚔️ Combat Phase - Choose your action", "system");
+        this.addLog(`Combat Phase - Choose action for ${this.selectedUnit.name}`, "system");
         this.updateUI();
     }
 
     playerAction(action) {
-        if (this.currentPhase !== "combat" || !this.isPlayerTurn || this.gameOver) return;
+        if (this.currentPhase !== "combat" || !this.isPlayerTurn || this.gameOver || !this.selectedUnit) return;
+
+        if (action === "defend") {
+            this.selectedUnit.defend();
+            this.addLog(`${this.selectedUnit.name} braces for attack!`, "player-action");
+            this.finishUnitTurn();
+            return;
+        }
+
+        // For attack and special, need to select target
+        this.pendingAction = action;
+        this.currentPhase = "targeting";
+        this.hexGrid.highlightTargetableEnemies(this.enemyUnits, this.selectedUnit.row, this.selectedUnit.col);
+        this.addLog("Select an enemy to target", "system");
+        this.updateUI();
+    }
+
+    selectTarget(enemy) {
+        this.targetEnemy = enemy;
 
         const distance = this.hexGrid.hexDistance(
-            this.player.row, this.player.col,
-            this.enemy.row, this.enemy.col
+            this.selectedUnit.row, this.selectedUnit.col,
+            this.targetEnemy.row, this.targetEnemy.col
         );
 
-        switch(action) {
-            case "attack":
-                if (!this.player.canAttackAtDistance(distance)) {
-                    this.addLog("❌ Enemy is too far away to attack!", "system");
-                    return;
-                }
+        if (!this.selectedUnit.canAttackAtDistance(distance)) {
+            this.addLog("❌ Enemy is too far away!", "system");
+            this.currentPhase = "combat";
+            this.hexGrid.clearHighlights();
+            this.updateUI();
+            return;
+        }
 
-                const damage = this.player.attackTarget(this.enemy, distance);
+        // Execute the pending action
+        switch(this.pendingAction) {
+            case "attack":
+                const damage = this.selectedUnit.attackTarget(this.targetEnemy, distance);
                 const rangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`🗡️ You attack for ${damage} damage (${rangeText} range)!`, "player-action");
+                this.addLog(`${this.selectedUnit.name} attacks ${this.targetEnemy.name} for ${damage} damage (${rangeText})!`, "player-action");
                 this.hexGrid.animateAttack(
-                    this.player.row, this.player.col,
-                    this.enemy.row, this.enemy.col
+                    this.selectedUnit.row, this.selectedUnit.col,
+                    this.targetEnemy.row, this.targetEnemy.col
                 );
                 break;
 
-            case "defend":
-                this.player.defend();
-                this.addLog(`🛡️ You brace for the next attack!`, "player-action");
-                break;
-
             case "special":
-                if (this.specialCooldown > 0) return;
-
-                if (!this.player.canAttackAtDistance(distance)) {
-                    this.addLog("❌ Enemy is too far away for special attack!", "system");
+                if (this.specialCooldown > 0) {
+                    this.addLog("Special attack on cooldown!", "system");
+                    this.currentPhase = "combat";
+                    this.hexGrid.clearHighlights();
+                    this.updateUI();
                     return;
                 }
 
-                const specialDamage = this.player.specialAttack(this.enemy, distance);
+                const specialDamage = this.selectedUnit.specialAttack(this.targetEnemy, distance);
                 const specialRangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`✨ SPECIAL ATTACK for ${specialDamage} damage (${specialRangeText} range)!`, "player-action");
+                this.addLog(`${this.selectedUnit.name} SPECIAL ATTACK on ${this.targetEnemy.name} for ${specialDamage} damage (${specialRangeText})!`, "player-action");
                 this.hexGrid.animateAttack(
-                    this.player.row, this.player.col,
-                    this.enemy.row, this.enemy.col
+                    this.selectedUnit.row, this.selectedUnit.col,
+                    this.targetEnemy.row, this.targetEnemy.col
                 );
                 this.specialCooldown = 3;
                 break;
         }
 
+        this.finishUnitTurn();
+    }
+
+    finishUnitTurn() {
+        this.selectedUnit.markAsActed();
+        this.hexGrid.clearHighlights();
+
+        // Remove dead enemies from grid
+        this.enemyUnits.forEach(enemy => {
+            if (!enemy.isAlive()) {
+                this.hexGrid.clearHex(enemy.row, enemy.col);
+            }
+        });
+
         this.updateUI();
 
-        if (!this.enemy.isAlive()) {
+        // Check if all enemies dead
+        if (this.enemyUnits.every(u => !u.isAlive())) {
             this.endGame(true);
             return;
         }
 
-        this.isPlayerTurn = false;
-        this.disableButtons();
-        this.hexGrid.clearHighlights();
+        // Check if all player units have acted
+        const allActed = this.playerUnits.filter(u => u.isAlive()).every(u => u.hasActedThisTurn);
 
-        setTimeout(() => this.enemyTurn(), 1500);
+        if (allActed) {
+            this.isPlayerTurn = false;
+            this.disableButtons();
+            setTimeout(() => this.enemyTeamTurn(), 1500);
+        } else {
+            this.currentPhase = "unitSelection";
+            this.selectedUnit = null;
+            this.addLog("Select next unit to act", "system");
+            this.updateUI();
+        }
     }
 
-    enemyTurn() {
+    enemyTeamTurn() {
         if (this.gameOver) return;
 
-        // MOVEMENT PHASE
-        const currentDistance = this.hexGrid.hexDistance(
-            this.enemy.row, this.enemy.col,
-            this.player.row, this.player.col
-        );
+        this.addLog("💀 Enemy Team Turn", "enemy-action");
 
-        // Check if enemy is engaged
-        const isEngaged = currentDistance === 1;
-        const effectiveRange = isEngaged ? Math.floor(this.enemy.moveRange * 0.5) : this.enemy.moveRange;
+        // Reset enemy unit states
+        this.enemyUnits.forEach(u => u.resetTurnState());
 
-        if (isEngaged) {
-            this.addLog("💀 Enemy is ENGAGED! Movement reduced", "enemy-action");
-        } else {
-            this.addLog("💀 Enemy movement phase...", "enemy-action");
-        }
+        // Process each living enemy unit
+        const livingEnemies = this.enemyUnits.filter(u => u.isAlive());
+        this.currentEnemyIndex = 0;
 
-        // Strategic movement AI
-        let bestMove = { row: this.enemy.row, col: this.enemy.col };
-
-        // Get reachable hexes
-        const reachableHexes = this.hexGrid.getReachableHexes(
-            this.enemy.row,
-            this.enemy.col,
-            effectiveRange,
-            [{ row: this.player.row, col: this.player.col }]
-        );
-
-        // Find best position
-        if (currentDistance > 1) {
-            // Move closer to attack
-            let minDistance = currentDistance;
-            reachableHexes.forEach(({ row, col }) => {
-                const dist = this.hexGrid.hexDistance(row, col, this.player.row, this.player.col);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    bestMove = { row, col };
-                }
-            });
-        } else if (this.enemy.getHpPercentage() < 30) {
-            // Low health - try to get some distance
-            let maxDistance = 0;
-            reachableHexes.forEach(({ row, col }) => {
-                const dist = this.hexGrid.hexDistance(row, col, this.player.row, this.player.col);
-                if (dist > maxDistance && dist <= 2) { // Stay in range but farther
-                    maxDistance = dist;
-                    bestMove = { row, col };
-                }
-            });
-        }
-
-        if (bestMove.row !== this.enemy.row || bestMove.col !== this.enemy.col) {
-            this.hexGrid.placeCharacter(this.enemy, bestMove.row, bestMove.col, false);
-            this.addLog("💀 Enemy repositions", "enemy-action");
-        } else {
-            this.addLog("💀 Enemy holds position", "enemy-action");
-        }
-
-        setTimeout(() => this.enemyCombatPhase(), 800);
+        this.processNextEnemyUnit(livingEnemies);
     }
 
-    enemyCombatPhase() {
-        this.addLog("💀 Enemy combat phase...", "enemy-action");
+    processNextEnemyUnit(livingEnemies) {
+        if (this.currentEnemyIndex >= livingEnemies.length) {
+            // All enemies done, back to player turn
+            this.playerUnits.forEach(u => u.resetTurnState());
+            this.isPlayerTurn = true;
+            this.currentPhase = "unitSelection";
 
-        const distance = this.hexGrid.hexDistance(
-            this.enemy.row, this.enemy.col,
-            this.player.row, this.player.col
+            if (this.specialCooldown > 0) {
+                this.specialCooldown--;
+            }
+
+            setTimeout(() => {
+                this.addLog("Your turn! Select a unit to act.", "system");
+                this.updateUI();
+            }, 1000);
+            return;
+        }
+
+        const enemy = livingEnemies[this.currentEnemyIndex];
+        this.currentEnemyIndex++;
+
+        // Enemy movement
+        this.enemyMovementPhase(enemy, () => {
+            // Enemy combat
+            this.enemyCombatPhase(enemy, () => {
+                // Process next enemy after delay
+                setTimeout(() => this.processNextEnemyUnit(livingEnemies), 800);
+            });
+        });
+    }
+
+    enemyMovementPhase(enemy, callback) {
+        // Find closest player
+        let closestPlayer = null;
+        let minDistance = Infinity;
+
+        this.playerUnits.forEach(player => {
+            if (!player.isAlive()) return;
+            const dist = this.hexGrid.hexDistance(enemy.row, enemy.col, player.row, player.col);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestPlayer = player;
+            }
+        });
+
+        if (!closestPlayer) {
+            callback();
+            return;
+        }
+
+        const isEngaged = minDistance === 1;
+        const effectiveRange = isEngaged ? Math.floor(enemy.moveRange * 0.5) : enemy.moveRange;
+
+        // Get blocked positions
+        const blockedPositions = [];
+        this.playerUnits.forEach(u => { if (u.isAlive()) blockedPositions.push({ row: u.row, col: u.col }); });
+        this.enemyUnits.forEach(u => { if (u.isAlive() && u !== enemy) blockedPositions.push({ row: u.row, col: u.col }); });
+
+        const reachableHexes = this.hexGrid.getReachableHexes(
+            enemy.row, enemy.col,
+            effectiveRange,
+            blockedPositions
         );
 
-        // Combat AI logic
-        const enemyHpPercent = this.enemy.getHpPercentage();
-        const playerHpPercent = this.player.getHpPercentage();
+        let bestMove = { row: enemy.row, col: enemy.col };
 
-        let action;
+        if (minDistance > 1) {
+            // Move closer
+            let bestDistance = minDistance;
+            reachableHexes.forEach(({ row, col }) => {
+                const dist = this.hexGrid.hexDistance(row, col, closestPlayer.row, closestPlayer.col);
+                if (dist < bestDistance) {
+                    bestDistance = dist;
+                    bestMove = { row, col };
+                }
+            });
+        } else if (enemy.getHpPercentage() < 30 && minDistance === 1) {
+            // Low health - try to back off
+            let bestDistance = 0;
+            reachableHexes.forEach(({ row, col }) => {
+                const dist = this.hexGrid.hexDistance(row, col, closestPlayer.row, closestPlayer.col);
+                if (dist > bestDistance && dist <= 2) {
+                    bestDistance = dist;
+                    bestMove = { row, col };
+                }
+            });
+        }
+
+        if (bestMove.row !== enemy.row || bestMove.col !== enemy.col) {
+            this.hexGrid.placeCharacter(enemy, bestMove.row, bestMove.col, false);
+            this.addLog(`${enemy.name} repositions`, "enemy-action");
+        }
+
+        setTimeout(callback, 500);
+    }
+
+    enemyCombatPhase(enemy, callback) {
+        // Find target in range
+        let target = null;
+        let targetDistance = Infinity;
+
+        this.playerUnits.forEach(player => {
+            if (!player.isAlive()) return;
+            const dist = this.hexGrid.hexDistance(enemy.row, enemy.col, player.row, player.col);
+            if (dist <= 2 && dist < targetDistance) {
+                targetDistance = dist;
+                target = player;
+            }
+        });
+
+        if (!target) {
+            this.addLog(`${enemy.name} cannot reach any target`, "enemy-action");
+            setTimeout(callback, 300);
+            return;
+        }
+
+        // Simple AI action selection
+        const enemyHpPercent = enemy.getHpPercentage();
         const random = Math.random();
+        let action;
 
-        // Can't attack if too far
-        const canAttack = this.enemy.canAttackAtDistance(distance);
-
-        if (!canAttack) {
-            this.addLog("💀 Enemy is too far to attack!", "enemy-action");
+        if (enemyHpPercent < 30 && random < 0.4) {
             action = "defend";
-        } else if (enemyHpPercent < 30 && random < 0.4) {
+        } else if (random < 0.2) {
             action = "defend";
-        } else if (playerHpPercent < 40 && random < 0.3) {
-            action = "special";
-        } else if (random < 0.15) {
-            action = "defend";
-        } else if (random < 0.35) {
-            action = "special";
         } else {
             action = "attack";
         }
 
-        setTimeout(() => this.executeEnemyAction(action, distance), 500);
-    }
+        setTimeout(() => {
+            if (action === "defend") {
+                enemy.defend();
+                this.addLog(`${enemy.name} defends`, "enemy-action");
+            } else {
+                const damage = enemy.attackTarget(target, targetDistance);
+                const rangeText = targetDistance === 1 ? "full" : "reduced";
+                this.addLog(`${enemy.name} attacks ${target.name} for ${damage} damage (${rangeText})!`, "enemy-action");
+                this.hexGrid.animateAttack(enemy.row, enemy.col, target.row, target.col);
 
-    executeEnemyAction(action, distance) {
-        switch(action) {
-            case "attack":
-                const damage = this.enemy.attackTarget(this.player, distance);
-                const rangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`💀 Enemy attacks for ${damage} damage (${rangeText} range)!`, "enemy-action");
-                this.hexGrid.animateAttack(
-                    this.enemy.row, this.enemy.col,
-                    this.player.row, this.player.col
-                );
-                break;
+                // Remove dead players from grid
+                if (!target.isAlive()) {
+                    this.hexGrid.clearHex(target.row, target.col);
+                    this.addLog(`${target.name} has fallen!`, "system");
+                }
+            }
 
-            case "defend":
-                this.enemy.defend();
-                this.addLog(`🛡️ Enemy prepares to defend!`, "enemy-action");
-                break;
+            this.updateUI();
 
-            case "special":
-                const specialDamage = this.enemy.specialAttack(this.player, distance);
-                const specialRangeText = distance === 1 ? "full" : "reduced";
-                this.addLog(`💥 Enemy SPECIAL ATTACK for ${specialDamage} damage (${specialRangeText} range)!`, "enemy-action");
-                this.hexGrid.animateAttack(
-                    this.enemy.row, this.enemy.col,
-                    this.player.row, this.player.col
-                );
-                break;
-        }
+            // Check if all players dead
+            if (this.playerUnits.every(u => !u.isAlive())) {
+                this.endGame(false);
+                return;
+            }
 
-        this.updateUI();
-
-        if (!this.player.isAlive()) {
-            this.endGame(false);
-            return;
-        }
-
-        this.isPlayerTurn = true;
-
-        if (this.specialCooldown > 0) {
-            this.specialCooldown--;
-        }
-
-        setTimeout(() => this.startMovementPhase(), 1000);
+            callback();
+        }, 500);
     }
 
     updateUI() {
-        // Update HP bars
-        this.playerHpBar.style.width = this.player.getHpPercentage() + "%";
-        this.enemyHpBar.style.width = this.enemy.getHpPercentage() + "%";
-
-        // Update HP text
-        this.playerHpText.textContent = `${this.player.hp}/${this.player.maxHp}`;
-        this.enemyHpText.textContent = `${this.enemy.hp}/${this.enemy.maxHp}`;
-
-        // Update health bar colors based on HP
-        const playerPercent = this.player.getHpPercentage();
-        const enemyPercent = this.enemy.getHpPercentage();
-
-        if (playerPercent < 30) {
-            this.playerHpBar.style.background = "linear-gradient(90deg, #e53e3e, #c53030)";
-        } else if (playerPercent < 60) {
-            this.playerHpBar.style.background = "linear-gradient(90deg, #ed8936, #dd6b20)";
-        } else {
-            this.playerHpBar.style.background = "linear-gradient(90deg, #48bb78, #38a169)";
-        }
-
-        if (enemyPercent < 30) {
-            this.enemyHpBar.style.background = "linear-gradient(90deg, #742a2a, #63171b)";
-        } else if (enemyPercent < 60) {
-            this.enemyHpBar.style.background = "linear-gradient(90deg, #c53030, #9b2c2c)";
-        } else {
-            this.enemyHpBar.style.background = "linear-gradient(90deg, #f56565, #e53e3e)";
-        }
-
-        // Update status effects
-        const playerEnemyDistance = this.hexGrid.hexDistance(
-            this.player.row, this.player.col,
-            this.enemy.row, this.enemy.col
-        );
-        const isPlayerEngaged = playerEnemyDistance === 1;
-
-        let playerStatusText = "";
-        if (this.player.isDefending) playerStatusText = "🛡️ DEFENDING";
-        if (isPlayerEngaged) playerStatusText += (playerStatusText ? " | " : "") + "⚔️ ENGAGED";
-        this.playerStatus.textContent = playerStatusText;
-
-        let enemyStatusText = "";
-        if (this.enemy.isDefending) enemyStatusText = "🛡️ DEFENDING";
-        if (isPlayerEngaged) enemyStatusText += (enemyStatusText ? " | " : "") + "⚔️ ENGAGED";
-        this.enemyStatus.textContent = enemyStatusText;
+        // Update rosters
+        this.updateRoster(this.playerRoster, this.playerUnits, true);
+        this.updateRoster(this.enemyRoster, this.enemyUnits, false);
 
         // Update turn indicator based on phase
         if (!this.isPlayerTurn) {
-            this.turnIndicator.textContent = "⏳ Enemy Turn...";
+            this.turnIndicator.textContent = "⏳ Enemy Team Turn...";
+        } else if (this.currentPhase === "unitSelection") {
+            this.turnIndicator.textContent = "👥 Select Unit to Act";
         } else if (this.currentPhase === "movement") {
-            this.turnIndicator.textContent = "👣 Movement Phase";
-        } else {
-            this.turnIndicator.textContent = "⚔️ Combat Phase";
+            this.turnIndicator.textContent = `👣 ${this.selectedUnit?.name} - Movement Phase`;
+        } else if (this.currentPhase === "combat") {
+            this.turnIndicator.textContent = `⚔️ ${this.selectedUnit?.name} - Combat Phase`;
+        } else if (this.currentPhase === "targeting") {
+            this.turnIndicator.textContent = `🎯 ${this.selectedUnit?.name} - Select Target`;
         }
 
         // Show/hide buttons based on phase
@@ -667,14 +782,53 @@ class Game {
         }
     }
 
+    updateRoster(rosterElement, units, isPlayer) {
+        rosterElement.innerHTML = '';
+
+        units.forEach(unit => {
+            const unitCard = document.createElement('div');
+            unitCard.className = 'unit-card';
+
+            if (!unit.isAlive()) {
+                unitCard.classList.add('unit-dead');
+            } else if (unit.hasActedThisTurn) {
+                unitCard.classList.add('unit-acted');
+            }
+
+            if (unit === this.selectedUnit) {
+                unitCard.classList.add('unit-selected');
+            }
+
+            const hpPercent = unit.getHpPercentage();
+            let hpColor = '#48bb78';
+            if (hpPercent < 30) hpColor = '#e53e3e';
+            else if (hpPercent < 60) hpColor = '#ed8936';
+
+            unitCard.innerHTML = `
+                <div class="unit-sprite">${unit.sprite}</div>
+                <div class="unit-info">
+                    <div class="unit-name">${unit.name}</div>
+                    <div class="unit-hp-bar-container">
+                        <div class="unit-hp-bar" style="width: ${hpPercent}%; background: ${hpColor};"></div>
+                    </div>
+                    <div class="unit-hp-text">${unit.hp}/${unit.maxHp}</div>
+                    ${unit.hasActedThisTurn && unit.isAlive() ? '<div class="unit-status">✓ Acted</div>' : ''}
+                    ${unit.isDefending ? '<div class="unit-status">🛡️ Defending</div>' : ''}
+                </div>
+            `;
+
+            rosterElement.appendChild(unitCard);
+        });
+    }
+
     addLog(message, type = "") {
         const logEntry = document.createElement("div");
         logEntry.className = `log-entry ${type}`;
         logEntry.textContent = message;
         this.logMessages.insertBefore(logEntry, this.logMessages.firstChild);
 
-        // Keep only last 12 messages
-        while (this.logMessages.children.length > 12) {
+        // Keep only last 15 messages
+        while (this.logMessages.children.length > 15) {
             this.logMessages.removeChild(this.logMessages.lastChild);
         }
     }
@@ -700,34 +854,14 @@ class Game {
     endGame(playerWon) {
         this.gameOver = true;
         this.disableButtons();
-        this.removeHexClickHandlers();
         this.hexGrid.clearHighlights();
 
-        const playerHex = this.hexGrid.getHexElement(this.player.row, this.player.col);
-        const enemyHex = this.hexGrid.getHexElement(this.enemy.row, this.enemy.col);
-
         if (playerWon) {
-            this.addLog("🎉 VICTORY! You have defeated the Dark Knight!", "system");
-            if (playerHex) {
-                const playerChar = playerHex.querySelector('.hexagon-character');
-                if (playerChar) playerChar.classList.add('victory-animation');
-            }
-            if (enemyHex) {
-                const enemyChar = enemyHex.querySelector('.hexagon-character');
-                if (enemyChar) enemyChar.classList.add('defeat-animation');
-            }
+            this.addLog("🎉 VICTORY! All enemies defeated!", "system");
             this.turnIndicator.textContent = "🏆 Victory!";
             this.turnIndicator.style.color = "#38a169";
         } else {
-            this.addLog("💀 DEFEAT! You have been defeated...", "system");
-            if (playerHex) {
-                const playerChar = playerHex.querySelector('.hexagon-character');
-                if (playerChar) playerChar.classList.add('defeat-animation');
-            }
-            if (enemyHex) {
-                const enemyChar = enemyHex.querySelector('.hexagon-character');
-                if (enemyChar) enemyChar.classList.add('victory-animation');
-            }
+            this.addLog("💀 DEFEAT! Your team has fallen...", "system");
             this.turnIndicator.textContent = "☠️ Defeat...";
             this.turnIndicator.style.color = "#e53e3e";
         }
@@ -739,9 +873,6 @@ class Game {
 
         // Clear log
         this.logMessages.innerHTML = "";
-
-        // Remove hex handlers
-        this.removeHexClickHandlers();
 
         // Create new game instance
         const newGame = new Game();

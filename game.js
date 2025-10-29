@@ -16,43 +16,91 @@ class Character {
         this.movedThisTurn = false;
     }
 
-    takeDamage(damage, distancePenalty = 1.0) {
+    takeDamage(damage, distancePenalty = 1.0, attacker = null) {
         // Apply distance penalty before defense
         let baseDamage = Math.floor(damage * distancePenalty);
         let actualDamage = Math.max(1, baseDamage - this.defense);
 
         if (this.isDefending) {
-            actualDamage = Math.floor(actualDamage * 0.5);
+            // High HP units defend better
+            const hpFactor = 0.3 + (this.getHpPercentage() / 100) * 0.7; // 30% to 100% effectiveness
+            const defenseReduction = 0.5 * hpFactor;
+            actualDamage = Math.floor(actualDamage * (1 - defenseReduction));
+
+            // Chance for counter attack
+            const counterResult = this.attemptCounterAttack(attacker);
+
+            this.isDefending = false;
+            this.hp = Math.max(0, this.hp - actualDamage);
+
+            return { damage: actualDamage, counter: counterResult };
         }
 
         this.hp = Math.max(0, this.hp - actualDamage);
-        this.isDefending = false;
+        return { damage: actualDamage, counter: null };
+    }
 
-        return actualDamage;
+    attemptCounterAttack(attacker) {
+        if (!attacker) return null;
+
+        // Counter chance based on:
+        // 1. Defense vs Attack ratio
+        // 2. HP difference
+        // 3. Random chance
+
+        const defAtkRatio = this.defense / attacker.attack; // Higher def vs atk = better chance
+        const hpRatio = this.getHpPercentage() / attacker.getHpPercentage(); // Higher relative HP = better chance
+
+        // Base 15% chance, modified by ratios
+        let counterChance = 0.15 * defAtkRatio * hpRatio;
+        counterChance = Math.min(0.5, Math.max(0.05, counterChance)); // Clamp between 5% and 50%
+
+        if (Math.random() < counterChance) {
+            // Counter attack does reduced damage (50%)
+            const counterDamage = Math.floor(this.attack * 0.5);
+            const result = attacker.takeDamage(counterDamage, 1.0);
+            return result.damage || result; // Handle nested counter results
+        }
+
+        return null;
     }
 
     attackTarget(target, distance) {
         let baseDamage = this.attack + Math.floor(Math.random() * 6) - 2;
 
-        // Stationary combat bonus: +25% if didn't move
-        if (!this.movedThisTurn) {
+        // HP scaling: Low HP units are weakened
+        // At 100% HP = full damage, at 0% HP = 50% damage
+        const hpFactor = 0.5 + (this.getHpPercentage() / 100) * 0.5;
+        baseDamage = Math.floor(baseDamage * hpFactor);
+
+        // Attack quality roll (10% devastating, 10% ineffective, 80% normal)
+        const qualityRoll = Math.random();
+        let attackQuality = "normal";
+
+        if (qualityRoll < 0.1) {
+            attackQuality = "devastating";
+            baseDamage = Math.floor(baseDamage * 1.5);
+        } else if (qualityRoll < 0.2) {
+            attackQuality = "ineffective";
+            baseDamage = Math.floor(baseDamage * 0.5);
+        }
+
+        // Stationary combat bonus: +25% if didn't move (only for adjacent attacks)
+        let stationaryBonus = false;
+        if (!this.movedThisTurn && distance === 1) {
             baseDamage = Math.floor(baseDamage * 1.25);
+            stationaryBonus = true;
         }
 
         const penalty = this.getDistancePenalty(distance);
-        return target.takeDamage(baseDamage, penalty);
-    }
+        const result = target.takeDamage(baseDamage, penalty, this);
 
-    specialAttack(target, distance) {
-        let baseDamage = Math.floor(this.attack * 1.5) + Math.floor(Math.random() * 8) - 2;
-
-        // Stationary combat bonus: +25% if didn't move
-        if (!this.movedThisTurn) {
-            baseDamage = Math.floor(baseDamage * 1.25);
-        }
-
-        const penalty = this.getDistancePenalty(distance);
-        return target.takeDamage(baseDamage, penalty);
+        return {
+            damage: result.damage || result,
+            counter: result.counter || null,
+            quality: attackQuality,
+            stationary: stationaryBonus
+        };
     }
 
     getDistancePenalty(distance) {
@@ -340,7 +388,6 @@ class Game {
 
         this.isPlayerTurn = true;
         this.gameOver = false;
-        this.specialCooldown = 0;
         this.turnCount = 0;
 
         // Phase and unit selection tracking
@@ -396,7 +443,6 @@ class Game {
 
         this.attackBtn = document.getElementById("attack-btn");
         this.defendBtn = document.getElementById("defend-btn");
-        this.specialBtn = document.getElementById("special-btn");
         this.skipMoveBtn = document.getElementById("skip-move-btn");
         this.resetBtn = document.getElementById("reset-btn");
 
@@ -414,7 +460,6 @@ class Game {
     attachEventListeners() {
         this.attackBtn.addEventListener("click", () => this.playerAction("attack"));
         this.defendBtn.addEventListener("click", () => this.playerAction("defend"));
-        this.specialBtn.addEventListener("click", () => this.playerAction("special"));
         this.skipMoveBtn.addEventListener("click", () => this.skipMovement());
         this.resetBtn.addEventListener("click", () => this.resetGame());
 
@@ -580,7 +625,7 @@ class Game {
             return;
         }
 
-        // For attack and special, need to select target
+        // For attack, need to select target
         this.pendingAction = action;
         this.currentPhase = "targeting";
         this.hexGrid.highlightTargetableEnemies(this.enemyUnits, this.selectedUnit.row, this.selectedUnit.col);
@@ -604,38 +649,33 @@ class Game {
             return;
         }
 
-        // Execute the pending action
-        switch(this.pendingAction) {
-            case "attack":
-                const damage = this.selectedUnit.attackTarget(this.targetEnemy, distance);
-                const rangeText = distance === 1 ? "full" : "reduced";
-                const stationaryText = !this.selectedUnit.movedThisTurn ? " +STATIONARY BONUS" : "";
-                this.addLog(`${this.selectedUnit.name} attacks ${this.targetEnemy.name} for ${damage} damage (${rangeText})${stationaryText}!`, "player-action");
-                this.hexGrid.animateAttack(
-                    this.selectedUnit.row, this.selectedUnit.col,
-                    this.targetEnemy.row, this.targetEnemy.col
-                );
-                break;
+        // Execute the attack
+        const result = this.selectedUnit.attackTarget(this.targetEnemy, distance);
 
-            case "special":
-                if (this.specialCooldown > 0) {
-                    this.addLog("Special attack on cooldown!", "system");
-                    this.currentPhase = "combat";
-                    this.hexGrid.clearHighlights();
-                    this.updateUI();
-                    return;
-                }
+        // Build attack message
+        const rangeText = distance === 1 ? "full" : "reduced";
+        let qualityText = "";
+        if (result.quality === "devastating") {
+            qualityText = " ⚡DEVASTATING!⚡";
+        } else if (result.quality === "ineffective") {
+            qualityText = " (ineffective)";
+        }
+        const stationaryText = result.stationary ? " +STATIONARY" : "";
 
-                const specialDamage = this.selectedUnit.specialAttack(this.targetEnemy, distance);
-                const specialRangeText = distance === 1 ? "full" : "reduced";
-                const specialStationaryText = !this.selectedUnit.movedThisTurn ? " +STATIONARY BONUS" : "";
-                this.addLog(`${this.selectedUnit.name} SPECIAL ATTACK on ${this.targetEnemy.name} for ${specialDamage} damage (${specialRangeText})${specialStationaryText}!`, "player-action");
-                this.hexGrid.animateAttack(
-                    this.selectedUnit.row, this.selectedUnit.col,
-                    this.targetEnemy.row, this.targetEnemy.col
-                );
-                this.specialCooldown = 3;
-                break;
+        this.addLog(`${this.selectedUnit.name} attacks ${this.targetEnemy.name} for ${result.damage} damage (${rangeText})${qualityText}${stationaryText}`, "player-action");
+
+        this.hexGrid.animateAttack(
+            this.selectedUnit.row, this.selectedUnit.col,
+            this.targetEnemy.row, this.targetEnemy.col
+        );
+
+        // Check for counter attack
+        if (result.counter !== null) {
+            this.addLog(`${this.targetEnemy.name} COUNTERS for ${result.counter} damage!`, "enemy-action");
+            this.hexGrid.animateAttack(
+                this.targetEnemy.row, this.targetEnemy.col,
+                this.selectedUnit.row, this.selectedUnit.col
+            );
         }
 
         this.finishUnitTurn();
@@ -698,10 +738,6 @@ class Game {
             this.playerUnits.forEach(u => u.resetTurnState());
             this.isPlayerTurn = true;
             this.currentPhase = "unitSelection";
-
-            if (this.specialCooldown > 0) {
-                this.specialCooldown--;
-            }
 
             setTimeout(() => {
                 this.addLog("Your turn! Select a unit to act.", "system");
@@ -828,11 +864,31 @@ class Game {
                 enemy.defend();
                 this.addLog(`${enemy.name} defends`, "enemy-action");
             } else {
-                const damage = enemy.attackTarget(target, targetDistance);
+                const result = enemy.attackTarget(target, targetDistance);
                 const rangeText = targetDistance === 1 ? "full" : "reduced";
-                const stationaryText = !enemy.movedThisTurn ? " +STATIONARY" : "";
-                this.addLog(`${enemy.name} attacks ${target.name} for ${damage} damage (${rangeText})${stationaryText}!`, "enemy-action");
+
+                let qualityText = "";
+                if (result.quality === "devastating") {
+                    qualityText = " ⚡DEVASTATING!⚡";
+                } else if (result.quality === "ineffective") {
+                    qualityText = " (ineffective)";
+                }
+                const stationaryText = result.stationary ? " +STATIONARY" : "";
+
+                this.addLog(`${enemy.name} attacks ${target.name} for ${result.damage} damage (${rangeText})${qualityText}${stationaryText}`, "enemy-action");
                 this.hexGrid.animateAttack(enemy.row, enemy.col, target.row, target.col);
+
+                // Check for counter attack
+                if (result.counter !== null) {
+                    this.addLog(`${target.name} COUNTERS for ${result.counter} damage!`, "player-action");
+                    this.hexGrid.animateAttack(target.row, target.col, enemy.row, enemy.col);
+
+                    // Check if enemy died from counter
+                    if (!enemy.isAlive()) {
+                        this.hexGrid.clearHex(enemy.row, enemy.col);
+                        this.addLog(`${enemy.name} has fallen!`, "system");
+                    }
+                }
 
                 // Remove dead players from grid
                 if (!target.isAlive()) {
@@ -888,28 +944,14 @@ class Game {
         const isCombatPhase = this.currentPhase === "combat";
         const isMovementPhase = this.currentPhase === "movement";
 
-        this.attackBtn.style.display = isCombatPhase ? "flex" : "none";
-        this.defendBtn.style.display = isCombatPhase ? "flex" : "none";
-        this.specialBtn.style.display = isCombatPhase ? "flex" : "none";
-        this.skipMoveBtn.style.display = isMovementPhase && this.isPlayerTurn ? "flex" : "none";
+        this.attackBtn.style.display = isCombatPhase ? "inline-block" : "none";
+        this.defendBtn.style.display = isCombatPhase ? "inline-block" : "none";
+        this.skipMoveBtn.style.display = isMovementPhase && this.isPlayerTurn ? "inline-block" : "none";
 
         if ((isCombatPhase || isMovementPhase) && this.isPlayerTurn) {
             this.enableButtons();
         } else {
             this.disableButtons();
-        }
-
-        // Update special button cooldown
-        if (this.specialCooldown > 0) {
-            this.specialBtn.innerHTML = `
-                ✨ Special Attack
-                <span class="btn-desc">Cooldown: ${this.specialCooldown} turns</span>
-            `;
-        } else {
-            this.specialBtn.innerHTML = `
-                ✨ Special Attack
-                <span class="btn-desc">Deal 1.5x damage (3 turn cooldown)</span>
-            `;
         }
     }
 
@@ -928,7 +970,6 @@ class Game {
     disableButtons() {
         this.attackBtn.disabled = true;
         this.defendBtn.disabled = true;
-        this.specialBtn.disabled = true;
         this.skipMoveBtn.disabled = true;
     }
 
@@ -936,7 +977,6 @@ class Game {
         if (this.currentPhase === "combat") {
             this.attackBtn.disabled = false;
             this.defendBtn.disabled = false;
-            this.specialBtn.disabled = this.specialCooldown > 0;
         }
         if (this.currentPhase === "movement") {
             this.skipMoveBtn.disabled = false;

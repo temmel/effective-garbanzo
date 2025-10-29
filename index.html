@@ -8,59 +8,60 @@
 </head>
 <body>
     <div class="game-container">
-        <h1>⚔️ Turn-Based Combat ⚔️</h1>
+        <h1>⚔️ Hex Battle Arena ⚔️</h1>
 
-        <div class="battle-arena">
-            <!-- Player Character -->
-            <div class="character-card player-card">
+        <!-- Character Stats Panel -->
+        <div class="stats-panel">
+            <!-- Player Stats -->
+            <div class="character-info player-info">
                 <h2>🛡️ Hero</h2>
-                <div class="character-sprite player-sprite">🧙‍♂️</div>
-                <div class="stats">
-                    <div class="stat-row">
-                        <span>HP:</span>
-                        <span id="player-hp-text">100/100</span>
-                    </div>
-                    <div class="health-bar-container">
-                        <div class="health-bar player-health" id="player-health-bar"></div>
-                    </div>
-                    <div class="stat-row">
-                        <span>ATK:</span>
+                <div class="stat-row">
+                    <span>HP:</span>
+                    <span id="player-hp-text">100/100</span>
+                </div>
+                <div class="health-bar-container">
+                    <div class="health-bar player-health" id="player-health-bar"></div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">ATK:</span>
                         <span id="player-atk">20</span>
                     </div>
-                    <div class="stat-row">
-                        <span>DEF:</span>
+                    <div class="stat-item">
+                        <span class="stat-label">DEF:</span>
                         <span id="player-def">5</span>
                     </div>
                 </div>
                 <div class="status-effects" id="player-status"></div>
             </div>
 
-            <!-- VS Indicator -->
-            <div class="vs-indicator">VS</div>
-
-            <!-- Enemy Character -->
-            <div class="character-card enemy-card">
+            <!-- Enemy Stats -->
+            <div class="character-info enemy-info">
                 <h2>💀 Dark Knight</h2>
-                <div class="character-sprite enemy-sprite">🧟</div>
-                <div class="stats">
-                    <div class="stat-row">
-                        <span>HP:</span>
-                        <span id="enemy-hp-text">100/100</span>
-                    </div>
-                    <div class="health-bar-container">
-                        <div class="health-bar enemy-health" id="enemy-health-bar"></div>
-                    </div>
-                    <div class="stat-row">
-                        <span>ATK:</span>
+                <div class="stat-row">
+                    <span>HP:</span>
+                    <span id="enemy-hp-text">100/100</span>
+                </div>
+                <div class="health-bar-container">
+                    <div class="health-bar enemy-health" id="enemy-health-bar"></div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">ATK:</span>
                         <span id="enemy-atk">18</span>
                     </div>
-                    <div class="stat-row">
-                        <span>DEF:</span>
+                    <div class="stat-item">
+                        <span class="stat-label">DEF:</span>
                         <span id="enemy-def">4</span>
                     </div>
                 </div>
                 <div class="status-effects" id="enemy-status"></div>
             </div>
+        </div>
+
+        <!-- Hexagonal Battlefield -->
+        <div class="battlefield-container">
+            <div id="hex-grid" class="hex-grid"></div>
         </div>
 
         <!-- Combat Log -->

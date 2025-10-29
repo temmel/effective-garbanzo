@@ -123,6 +123,11 @@ class HexGrid {
                 hexagon.dataset.row = row;
                 hexagon.dataset.col = col;
 
+                // Add the hexagon shape background
+                const hexShape = document.createElement('div');
+                hexShape.className = 'hexagon-shape';
+                hexagon.appendChild(hexShape);
+
                 hexRow.appendChild(hexagon);
                 rowElements.push(hexagon);
             }
